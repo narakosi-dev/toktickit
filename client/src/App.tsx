@@ -1,63 +1,98 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
+import RequesterSelect from "./components/RequesterSelect.js";
+import AppShell from "./components/AppShell.js";
 import { checkSystem, Category } from "./api.js";
 
-// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
-export default function App() {
-  const [state, setState] = useState<UiState>("idle");
+function MainContent() {
+  const { requester } = useRequester();
+
+  // Lab 1 Health Check State for backwards compatibility and regression testing
+  const [checkState, setCheckState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleCheck() {
-    setState("loading");
-    setErrorMsg("");
+    setCheckState("loading");
+    setErrorMessage("");
     try {
-      const result = await checkSystem();
-      setCategories(result.categories);
-      setState("success");
+      const res = await checkSystem();
+      setCategories(res.categories);
+      setCheckState("success");
     } catch {
-      setState("error");
-      setErrorMsg("Unable to connect to TokTickIT API");
+      setErrorMessage("Unable to connect to TokTickIT API");
+      setCheckState("error");
     }
   }
 
+  if (!requester) {
+    return (
+      <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: "var(--zen-bg)" }}>
+        {/* Requester Selection Screen */}
+        <RequesterSelect />
+
+        {/* Lab 1 System Health Check (Maintains zero regression on Lab 1 tests) */}
+        <div className="container pb-5" style={{ maxWidth: 560 }}>
+          <div className="zen-card p-4">
+            <h1 className="h4 fw-bold mb-3" style={{ color: "var(--zen-text-primary)" }}>
+              TokTickIT <span style={{ color: "var(--zen-primary)" }}>IT Service Desk</span>
+            </h1>
+            <p className="small text-muted mb-3">
+              Lab 1 API Health Check & Categories Verification:
+            </p>
+            <button
+              type="button"
+              className="btn btn-zen-primary"
+              onClick={handleCheck}
+              disabled={checkState === "loading"}
+            >
+              {checkState === "loading" ? "⏳ Loading…" : "Check System"}
+            </button>
+
+            {checkState === "loading" && (
+              <p className="mt-3 text-muted small">⏳ Loading…</p>
+            )}
+
+            {checkState === "success" && (
+              <div className="mt-3">
+                <p className="mb-2">
+                  <strong>Status:</strong> <span className="text-success fw-bold">Online</span>
+                </p>
+                {categories.length > 0 && (
+                  <>
+                    <p className="mb-1 fw-semibold small">Supported Request Categories:</p>
+                    <ol className="list-group list-group-numbered">
+                      {categories.map((cat) => (
+                        <li key={cat.id} className="list-group-item py-1 small">
+                          {cat.name}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+              </div>
+            )}
+
+            {checkState === "error" && (
+              <div className="alert alert-danger mt-3 py-2 small" role="alert">
+                <strong>Status:</strong> Offline — {errorMessage}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <AppShell />;
+}
+
+export default function App() {
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="h3 mb-4">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
-
-      <button className="btn btn-success" onClick={handleCheck} disabled={state === "loading"}>
-        {state === "loading" ? "⏳ Loading…" : "Check System"}
-      </button>
-
-      {state === "loading" && (
-        <p className="mt-3 text-muted">⏳ Loading…</p>
-      )}
-
-      {state === "success" && (
-        <div className="mt-3">
-          <p><strong>System Status:</strong> <span className="text-success">Online</span></p>
-          {categories.length > 0 && (
-            <>
-              <p className="mb-1"><strong>Supported Request Categories:</strong></p>
-              <ol>
-                {categories.map((cat) => (
-                  <li key={cat.id}>{cat.name}</li>
-                ))}
-              </ol>
-            </>
-          )}
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="mt-3">
-          <p><strong>System Status:</strong> <span className="text-danger">Offline</span></p>
-          <p className="text-danger">{errorMsg}</p>
-        </div>
-      )}
-    </div>
+    <RequesterProvider>
+      <MainContent />
+    </RequesterProvider>
   );
 }
