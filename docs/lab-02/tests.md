@@ -21,21 +21,21 @@ Testing follows a strict **Test-Driven Development (TDD)** and **Test-Driven Des
 | **TKT-05** | API | Ownership Isolation | `GET /api/tickets?requesterId=2` | 200 OK; does NOT include tickets belonging to Requester 1 | `server/tests/lab-02/my-tickets.test.ts` | Pass |
 | **TKT-06** | API | Search & Filter | `GET /api/tickets?requesterId=1&search=Laptop` | 200 OK; returns only tickets matching query | `server/tests/lab-02/my-tickets.test.ts` | Pass |
 | **TKT-07** | API | Pagination | `GET /api/tickets?requesterId=1&page=1&limit=2` | 200 OK; returns 2 items + correct pagination metadata | `server/tests/lab-02/my-tickets.test.ts` | Pass |
-| **TKT-08** | API | Ticket Detail (Owner) | `GET /api/tickets/1?requesterId=1` | 200 OK; returns full ticket details and attachments | `server/tests/lab-02/ticket-detail.test.ts` | Planned |
-| **TKT-09** | API | Detail Unauthorized | `GET /api/tickets/1?requesterId=2` | 404/403; access to another requester's ticket is rejected | `server/tests/lab-02/ticket-detail.test.ts` | Planned |
-| **ATT-01** | API | Upload Valid File | `POST /api/tickets/1/attachments` (valid PDF <= 5MB) | 201 Created; returns attachment record with `active: true` | `server/tests/lab-02/attachments.test.ts` | Planned |
-| **ATT-02** | API | Reject Invalid Type | `POST /api/tickets/1/attachments` (file `.exe`) | 400 Bad Request; unsupported type rejected | `server/tests/lab-02/attachments.test.ts` | Planned |
-| **ATT-03** | API | Reject Oversized File | `POST /api/tickets/1/attachments` (file > 5MB) | 400 Bad Request; file size limit error | `server/tests/lab-02/attachments.test.ts` | Planned |
-| **ATT-04** | API | Max 5 Attachments | Upload 6th attachment to ticket with 5 active | 400 Bad Request; maximum limit error | `server/tests/lab-02/attachments.test.ts` | Planned |
-| **ATT-05** | API | Soft-Remove File | `PATCH /api/attachments/1/remove` with valid reason | 200 OK; marked `active: false` with reason and timestamp | `server/tests/lab-02/attachments.test.ts` | Planned |
-| **ATT-06** | API | Block Removed Download | `GET /api/attachments/1/download` on soft-removed file | 410 Gone; download blocked | `server/tests/lab-02/attachments.test.ts` | Planned |
+| **TKT-08** | API | Ticket Detail (Owner) | `GET /api/tickets/1?requesterId=1` | 200 OK; returns full ticket details and attachments | `server/tests/lab-02/ticket-detail.test.ts` | Pass |
+| **TKT-09** | API | Detail Unauthorized | `GET /api/tickets/1?requesterId=2` | 404/403; access to another requester's ticket is rejected | `server/tests/lab-02/ticket-detail.test.ts` | Pass |
+| **ATT-01** | API | Upload Valid File | `POST /api/tickets/1/attachments` (valid PDF <= 5MB) | 201 Created; returns attachment record with `active: true` | `server/tests/lab-02/attachments.test.ts` | Pass |
+| **ATT-02** | API | Reject Invalid Type | `POST /api/tickets/1/attachments` (file `.exe`) | 400 Bad Request; unsupported type rejected | `server/tests/lab-02/attachments.test.ts` | Pass |
+| **ATT-03** | API | Reject Oversized File | `POST /api/tickets/1/attachments` (file > 5MB) | 400 Bad Request; file size limit error | `server/tests/lab-02/attachments.test.ts` | Pass |
+| **ATT-04** | API | Max 5 Attachments | Upload 6th attachment to ticket with 5 active | 400 Bad Request; maximum limit error | `server/tests/lab-02/attachments.test.ts` | Pass |
+| **ATT-05** | API | Soft-Remove File | `PATCH /api/attachments/1/remove` with valid reason | 200 OK; marked `active: false` with reason and timestamp | `server/tests/lab-02/attachments.test.ts` | Pass |
+| **ATT-06** | API | Block Removed Download | `GET /api/attachments/1/download` on soft-removed file | 410 Gone; download blocked | `server/tests/lab-02/attachments.test.ts` | Pass |
 | **UI-01** | UI | Requester Select | Render selector dropdown | Displays active requesters; clicking continue sets requester context | `client/tests/lab-02/RequesterSelect.test.tsx` | Pass |
 | **UI-02** | UI | Header Display | AppShell with active requester | Shows requester name & "Change Requester" button | `client/tests/lab-02/AppShell.test.tsx` | Pass |
 | **UI-03** | UI | Create Ticket Validation | Submit empty form | Displays field error messages; API not called | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | **UI-04** | UI | Create Ticket Success | Fill valid fields & submit | Shows busy state during submit, then success message with Ticket No | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | **UI-05** | UI | API Failure Resilience | Backend returns 500 on submit | Error banner shown; entered summary & description preserved | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | **UI-06** | UI | My Tickets Table | Render tickets list | Displays ticket number, summary, badges, and empty/no-results states | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
-| **UI-07** | UI | Detail & Soft Removal | Open ticket detail, trigger remove | Prompts for removal reason modal; updates item to "Removed" | `client/tests/lab-02/TicketDetail.test.tsx` | Planned |
+| **UI-07** | UI | Detail & Soft Removal | Open ticket detail, trigger remove | Prompts for removal reason modal; updates item to "Removed" | `client/tests/lab-02/TicketDetail.test.tsx` | Pass |
 | **E2E-01**| E2E | Full Requester Flow | Select user → create ticket → verify in list → check details → switch user isolation | End-to-end user journey passes completely | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
 
 ---

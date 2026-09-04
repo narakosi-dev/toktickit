@@ -3,12 +3,14 @@ import { useRequester } from "../context/RequesterContext.js";
 import { checkSystem, Category } from "../api.js";
 import CreateTicket from "./CreateTicket.js";
 import MyTickets from "./MyTickets.js";
+import TicketDetail from "./TicketDetail.js";
 
-type Tab = "my-tickets" | "create-ticket" | "system-status";
+type Tab = "my-tickets" | "create-ticket" | "system-status" | "ticket-detail";
 
 export default function AppShell() {
   const { requester, clearRequester } = useRequester();
   const [activeTab, setActiveTab] = useState<Tab>("system-status");
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Lab 1 state preservation for system check
   const [systemState, setSystemState] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -41,22 +43,31 @@ export default function AppShell() {
           <nav className="d-flex align-items-center gap-1">
             <button
               type="button"
-              className={`zen-nav-btn ${activeTab === "my-tickets" ? "active" : ""}`}
-              onClick={() => setActiveTab("my-tickets")}
+              className={`zen-nav-btn ${activeTab === "my-tickets" || activeTab === "ticket-detail" ? "active" : ""}`}
+              onClick={() => {
+                setSelectedTicketId(null);
+                setActiveTab("my-tickets");
+              }}
             >
               📋 My Tickets
             </button>
             <button
               type="button"
               className={`zen-nav-btn ${activeTab === "create-ticket" ? "active" : ""}`}
-              onClick={() => setActiveTab("create-ticket")}
+              onClick={() => {
+                setSelectedTicketId(null);
+                setActiveTab("create-ticket");
+              }}
             >
               ➕ Create Ticket
             </button>
             <button
               type="button"
               className={`zen-nav-btn ${activeTab === "system-status" ? "active" : ""}`}
-              onClick={() => setActiveTab("system-status")}
+              onClick={() => {
+                setSelectedTicketId(null);
+                setActiveTab("system-status");
+              }}
             >
               ⚡ System Status
             </button>
@@ -88,7 +99,23 @@ export default function AppShell() {
       {/* Main Content Area */}
       <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
         {activeTab === "my-tickets" && (
-          <MyTickets onNavigateToCreate={() => setActiveTab("create-ticket")} />
+          <MyTickets
+            onNavigateToCreate={() => setActiveTab("create-ticket")}
+            onSelectTicket={(ticketId) => {
+              setSelectedTicketId(ticketId);
+              setActiveTab("ticket-detail");
+            }}
+          />
+        )}
+
+        {activeTab === "ticket-detail" && selectedTicketId && (
+          <TicketDetail
+            ticketId={selectedTicketId}
+            onBack={() => {
+              setSelectedTicketId(null);
+              setActiveTab("my-tickets");
+            }}
+          />
         )}
 
         {activeTab === "create-ticket" && (
