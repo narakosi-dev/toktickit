@@ -92,3 +92,66 @@ export async function createTicket(payload: CreateTicketPayload): Promise<Ticket
   }
   return res.json();
 }
+
+// Lab 2 — Issue 4: Ticket Listing & Pagination Types
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string;
+  ticketDate: string;
+  summary: string;
+  description?: string;
+  priority: string;
+  status: string;
+  requesterId?: number;
+  categoryId?: number;
+  relatedSystemId?: number;
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  attachmentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginationMetadata {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface TicketListResponse {
+  tickets: TicketListItem[];
+  pagination: PaginationMetadata;
+}
+
+export interface TicketQueryFilters {
+  requesterId: number;
+  search?: string;
+  categoryId?: string | number;
+  priority?: string;
+  status?: string;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function fetchTickets(filters: TicketQueryFilters): Promise<TicketListResponse> {
+  const params = new URLSearchParams();
+  params.set("requesterId", String(filters.requesterId));
+
+  if (filters.search) params.set("search", filters.search);
+  if (filters.categoryId) params.set("categoryId", String(filters.categoryId));
+  if (filters.priority) params.set("priority", filters.priority);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.limit) params.set("limit", String(filters.limit));
+
+  const res = await fetch(`${API_URL}/api/tickets?${params.toString()}`);
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch tickets");
+  }
+  return res.json();
+}
+

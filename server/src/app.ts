@@ -127,31 +127,166 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
 
     // --- Generate ticket number (BR-01): TKT-YYYY-NNNNNN ---
     const year = new Date().getFullYear();
-    const lastTicket = await prisma.ticket.findFirst({
-      orderBy: { id: "desc" },
-      select: { id: true },
-    });
-    const nextSequence = (lastTicket?.id ?? 0) + 1;
-    const ticketNumber = `TKT-${year}-${String(nextSequence).padStart(6, "0")}`;
+    let ticket;
+    let attempts = 0;
 
-    // --- Create ticket ---
-    const ticket = await prisma.ticket.create({
-      data: {
-        ticketNumber,
-        summary: trimmedSummary,
-        description: trimmedDescription,
-        priority,
-        status: "New",
-        requesterId,
-        categoryId,
-        relatedSystemId,
-      },
-    });
+    while (!ticket && attempts < 5) {
+      attempts++;
+      const lastTicket = await prisma.ticket.findFirst({
+        where: { ticketNumber: { startsWith: `TKT-${year}-` } },
+        orderBy: { ticketNumber: "desc" },
+        select: { ticketNumber: true },
+      });
+
+      let nextSequence = 1;
+      if (lastTicket?.ticketNumber) {
+        const parts = lastTicket.ticketNumber.split("-");
+        const seq = parseInt(parts[2], 10);
+        if (!isNaN(seq)) {
+          nextSequence = seq + 1;
+        }
+      }
+
+      const ticketNumber = `TKT-${year}-${String(nextSequence).padStart(6, "0")}`;
+
+      try {
+        ticket = await prisma.ticket.create({
+          data: {
+            ticketNumber,
+            summary: trimmedSummary,
+            description: trimmedDescription,
+            priority,
+            status: "New",
+            requesterId,
+            categoryId,
+            relatedSystemId,
+          },
+        });
+      } catch (err: any) {
+        if (err?.code === "P2002" && attempts < 5) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!ticket) {
+      res.status(500).json({ error: "Failed to allocate unique ticket number" });
+      return;
+    }
 
     res.status(201).json(ticket);
   } catch (error) {
     console.error("Failed to create ticket:", error);
     res.status(500).json({ error: "Failed to create ticket" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lab 2 — Issue 4: List Requester's Tickets (GET /api/tickets)
+// ---------------------------------------------------------------------------
+app.get("/api/tickets", async (req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const { requesterId, search, categoryId, priority, status, sort, page, limit } = req.query;
+
+    if (!requesterId) {
+      res.status(400).json({ error: "requesterId query parameter is required" });
+      return;
+    }
+
+    const parsedRequesterId = parseInt(requesterId as string, 10);
+    if (isNaN(parsedRequesterId) || parsedRequesterId <= 0) {
+      res.status(400).json({ error: "requesterId must be a positive integer" });
+      return;
+    }
+
+    // Strict ownership isolation: only return tickets belonging to this requester
+    const where: any = {
+      requesterId: parsedRequesterId,
+    };
+
+    if (search && typeof search === "string" && search.trim()) {
+      const term = search.trim();
+      where.OR = [
+        { ticketNumber: { contains: term, mode: "insensitive" } },
+        { summary: { contains: term, mode: "insensitive" } },
+      ];
+    }
+
+    if (categoryId) {
+      const catId = parseInt(categoryId as string, 10);
+      if (!isNaN(catId) && catId > 0) {
+        where.categoryId = catId;
+      }
+    }
+
+    if (priority && typeof priority === "string" && priority.trim()) {
+      where.priority = priority.trim();
+    }
+
+    if (status && typeof status === "string" && status.trim()) {
+      where.status = status.trim();
+    }
+
+    let orderBy: any = { ticketDate: "desc" };
+    if (sort === "oldest") {
+      orderBy = { ticketDate: "asc" };
+    } else if (sort === "priority") {
+      orderBy = [{ priority: "asc" }, { ticketDate: "desc" }];
+    }
+
+    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit as string, 10) || 8));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [totalCount, tickets] = await Promise.all([
+      prisma.ticket.count({ where }),
+      prisma.ticket.findMany({
+        where,
+        include: {
+          category: { select: { id: true, name: true } },
+          relatedSystem: { select: { id: true, name: true } },
+          _count: {
+            select: {
+              attachments: { where: { active: true } },
+            },
+          },
+        },
+        orderBy,
+        skip,
+        take: limitNum,
+      }),
+    ]);
+
+    const formattedTickets = tickets.map((t) => ({
+      id: t.id,
+      ticketNumber: t.ticketNumber,
+      ticketDate: t.ticketDate,
+      summary: t.summary,
+      priority: t.priority,
+      status: t.status,
+      category: t.category,
+      relatedSystem: t.relatedSystem,
+      attachmentCount: t._count.attachments,
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
+    }));
+
+    const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / limitNum);
+
+    res.json({
+      tickets: formattedTickets,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalCount,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to query tickets:", error);
+    res.status(500).json({ error: "Failed to query tickets" });
   }
 });
 
