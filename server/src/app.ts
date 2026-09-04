@@ -1,42 +1,68 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
-// getPrisma() is your lazy database handle. Call it INSIDE a route when you
-// need the DB (Issue 4). It is intentionally unused until then.
 
-
-// The Express app is exported separately from app.listen() (see index.ts) so
-// Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(cors());
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// Issue 2 — API health check
-// Make the test in tests/lab-01/health.test.ts pass.
-// It must return HTTP 200 with JSON: { status: "ok", service: "TokTickIT API" }
+// Lab 1: Health check
 // ---------------------------------------------------------------------------
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", service: "TokTickIT API" });
 });
 
 // ---------------------------------------------------------------------------
-// Issue 4 — Category list
-// Add:  GET /api/categories
-//   -> read categories from PostgreSQL via getPrisma().category.findMany(...)
-//   -> return each { id, name } in a predictable (id) order
-//   -> on failure, respond 500 with a safe message (no internal details)
+// Lab 1: Category list
+// ---------------------------------------------------------------------------
 app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const categories = await prisma.category.findMany({
       select: { id: true, name: true },
-      orderBy: { id: 'asc' }
+      orderBy: { id: "asc" },
     });
     res.json(categories);
   } catch (error) {
     console.error("Failed to fetch categories:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lab 2 — Issue 2: Development Requesters (Active only)
+// ---------------------------------------------------------------------------
+app.get("/api/requesters", async (_req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const requesters = await prisma.requester.findMany({
+      where: { active: true },
+      select: { id: true, name: true, email: true, active: true },
+      orderBy: { id: "asc" },
+    });
+    res.json(requesters);
+  } catch (error) {
+    console.error("Failed to fetch requesters:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Lab 2 — Issue 2: Related Systems (Active only)
+// ---------------------------------------------------------------------------
+app.get("/api/related-systems", async (_req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const systems = await prisma.relatedSystem.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+      orderBy: { id: "asc" },
+    });
+    res.json(systems);
+  } catch (error) {
+    console.error("Failed to fetch related systems:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
