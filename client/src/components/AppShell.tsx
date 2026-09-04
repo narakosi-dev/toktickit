@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useRequester } from "../context/RequesterContext.js";
 import { checkSystem, Category } from "../api.js";
 import CreateTicket from "./CreateTicket.js";
+import MyTickets from "./MyTickets.js";
 
 type Tab = "my-tickets" | "create-ticket" | "system-status";
 
@@ -87,15 +88,7 @@ export default function AppShell() {
       {/* Main Content Area */}
       <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
         {activeTab === "my-tickets" && (
-          <div className="zen-card p-4 text-center">
-            <h2 className="h4 fw-bold mb-3">My Tickets</h2>
-            <p className="text-muted mb-4">
-              Ticket listing, searching, filtering, and pagination for <strong>{requester?.name}</strong> will be implemented in Issue 4.
-            </p>
-            <button className="btn btn-zen-primary" onClick={() => setActiveTab("create-ticket")}>
-              + Create New Ticket
-            </button>
-          </div>
+          <MyTickets onNavigateToCreate={() => setActiveTab("create-ticket")} />
         )}
 
         {activeTab === "create-ticket" && (

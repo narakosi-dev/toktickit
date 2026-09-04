@@ -17,10 +17,10 @@ Testing follows a strict **Test-Driven Development (TDD)** and **Test-Driven Des
 | **TKT-01** | API | Ticket Creation | `POST /api/tickets` with valid payload | 201 Created; returns ticket with generated `TKT-` number and status `New` | `server/tests/lab-02/create-ticket.test.ts` | Pass |
 | **TKT-02** | API | Ticket Validation | `POST /api/tickets` with summary < 5 chars | 400 Bad Request; validation error returned | `server/tests/lab-02/create-ticket.test.ts` | Pass |
 | **TKT-03** | API | Ticket Validation | `POST /api/tickets` with invalid categoryId | 404/400 Bad Request; invalid foreign key rejected | `server/tests/lab-02/create-ticket.test.ts` | Pass |
-| **TKT-04** | API | My Tickets List | `GET /api/tickets?requesterId=1` | 200 OK; returns array of tickets owned strictly by Requester 1 | `server/tests/lab-02/my-tickets.test.ts` | Planned |
-| **TKT-05** | API | Ownership Isolation | `GET /api/tickets?requesterId=2` | 200 OK; does NOT include tickets belonging to Requester 1 | `server/tests/lab-02/my-tickets.test.ts` | Planned |
-| **TKT-06** | API | Search & Filter | `GET /api/tickets?requesterId=1&search=Laptop` | 200 OK; returns only tickets matching query | `server/tests/lab-02/my-tickets.test.ts` | Planned |
-| **TKT-07** | API | Pagination | `GET /api/tickets?requesterId=1&page=1&limit=2` | 200 OK; returns 2 items + correct pagination metadata | `server/tests/lab-02/my-tickets.test.ts` | Planned |
+| **TKT-04** | API | My Tickets List | `GET /api/tickets?requesterId=1` | 200 OK; returns array of tickets owned strictly by Requester 1 | `server/tests/lab-02/my-tickets.test.ts` | Pass |
+| **TKT-05** | API | Ownership Isolation | `GET /api/tickets?requesterId=2` | 200 OK; does NOT include tickets belonging to Requester 1 | `server/tests/lab-02/my-tickets.test.ts` | Pass |
+| **TKT-06** | API | Search & Filter | `GET /api/tickets?requesterId=1&search=Laptop` | 200 OK; returns only tickets matching query | `server/tests/lab-02/my-tickets.test.ts` | Pass |
+| **TKT-07** | API | Pagination | `GET /api/tickets?requesterId=1&page=1&limit=2` | 200 OK; returns 2 items + correct pagination metadata | `server/tests/lab-02/my-tickets.test.ts` | Pass |
 | **TKT-08** | API | Ticket Detail (Owner) | `GET /api/tickets/1?requesterId=1` | 200 OK; returns full ticket details and attachments | `server/tests/lab-02/ticket-detail.test.ts` | Planned |
 | **TKT-09** | API | Detail Unauthorized | `GET /api/tickets/1?requesterId=2` | 404/403; access to another requester's ticket is rejected | `server/tests/lab-02/ticket-detail.test.ts` | Planned |
 | **ATT-01** | API | Upload Valid File | `POST /api/tickets/1/attachments` (valid PDF <= 5MB) | 201 Created; returns attachment record with `active: true` | `server/tests/lab-02/attachments.test.ts` | Planned |
@@ -34,7 +34,7 @@ Testing follows a strict **Test-Driven Development (TDD)** and **Test-Driven Des
 | **UI-03** | UI | Create Ticket Validation | Submit empty form | Displays field error messages; API not called | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | **UI-04** | UI | Create Ticket Success | Fill valid fields & submit | Shows busy state during submit, then success message with Ticket No | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | **UI-05** | UI | API Failure Resilience | Backend returns 500 on submit | Error banner shown; entered summary & description preserved | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
-| **UI-06** | UI | My Tickets Table | Render tickets list | Displays ticket number, summary, badges, and empty/no-results states | `client/tests/lab-02/MyTickets.test.tsx` | Planned |
+| **UI-06** | UI | My Tickets Table | Render tickets list | Displays ticket number, summary, badges, and empty/no-results states | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | **UI-07** | UI | Detail & Soft Removal | Open ticket detail, trigger remove | Prompts for removal reason modal; updates item to "Removed" | `client/tests/lab-02/TicketDetail.test.tsx` | Planned |
 | **E2E-01**| E2E | Full Requester Flow | Select user → create ticket → verify in list → check details → switch user isolation | End-to-end user journey passes completely | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
 
