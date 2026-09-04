@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useRequester } from "../context/RequesterContext.js";
 import { checkSystem, Category } from "../api.js";
+import CreateTicket from "./CreateTicket.js";
 
 type Tab = "my-tickets" | "create-ticket" | "system-status";
 
@@ -98,15 +99,7 @@ export default function AppShell() {
         )}
 
         {activeTab === "create-ticket" && (
-          <div className="zen-card p-4 text-center">
-            <h2 className="h4 fw-bold mb-3">Create IT Support Ticket</h2>
-            <p className="text-muted mb-4">
-              Ticket submission form with system selection, priority rating, and attachments will be implemented in Issue 3.
-            </p>
-            <button className="btn btn-zen-secondary" onClick={() => setActiveTab("my-tickets")}>
-              View My Tickets
-            </button>
-          </div>
+          <CreateTicket onTicketCreated={() => setActiveTab("my-tickets")} />
         )}
 
         {activeTab === "system-status" && (
