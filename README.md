@@ -6,36 +6,35 @@ TokTickIT (ตอกติ๊กกิต) is an IT service desk application for
 
 | Layer      | Technology                          |
 | ---------- | ----------------------------------- |
-| Frontend   | React + TypeScript + Vite + Bootstrap |
-| Backend    | Node.js + Express + TypeScript      |
+| Frontend   | React + TypeScript + Vite + Bootstrap (Zen Green Design System) |
+| Backend    | Node.js + Express + TypeScript + Multer |
 | Database   | PostgreSQL + Prisma ORM             |
-| Testing    | Vitest + Supertest                  |
+| Testing    | Vitest + React Testing Library + Supertest + Playwright |
 | Workflow   | Git + GitHub Projects + PR Reviews  |
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) v18 or later
-- [PostgreSQL](https://www.postgresql.org/) running locally
+- [Docker](https://www.docker.com/) / [PostgreSQL](https://www.postgresql.org/) (port 5433 or 5432)
 - [Git](https://git-scm.com/)
 
 ## Getting Started
 
-### 1. Clone the repository
+### 1. Database Setup (Docker)
 
 ```bash
-git clone https://github.com/<your-username>/toktickit.git
-cd toktickit
+docker compose up -d
 ```
 
 ### 2. Set up the backend
 
 ```bash
 cd server
-cp .env.example .env        # then edit .env with your DB credentials
+cp .env.example .env        # ensure DATABASE_URL matches postgres port
 npm install
-npx prisma migrate dev      # create database tables
-npx prisma db seed           # seed initial data
-npm run dev                  # starts the API on http://localhost:3000
+npx prisma migrate dev      # create/migrate database tables
+npx prisma db seed          # seed categories, requesters, and systems
+npm run dev                 # starts API on http://localhost:3000
 ```
 
 ### 3. Set up the frontend
@@ -43,7 +42,7 @@ npm run dev                  # starts the API on http://localhost:3000
 ```bash
 cd client
 npm install
-npm run dev                  # starts the UI on http://localhost:5173
+npm run dev                 # starts UI on http://localhost:5173
 ```
 
 ### 4. Open the app
@@ -53,33 +52,47 @@ Navigate to [http://localhost:5173](http://localhost:5173) in your browser.
 ## Running Tests
 
 ```bash
-# Backend tests (Supertest)
+# Backend unit & integration tests (34 tests passing)
 cd server
 npm test
 
-# Frontend tests (Vitest)
-cd client
+# Frontend component tests (22 tests passing)
+cd ../client
 npm test
+
+# Playwright End-to-End user journey tests
+cd ..
+npx playwright test e2e/lab-02/
 ```
 
 ## Project Structure
 
 ```
 toktickit/
-├── client/                  # React + Vite frontend
+├── client/                  # React + Vite frontend (Zen Green System)
 │   ├── src/                 # Application source code
-│   ├── tests/               # Frontend tests (Vitest)
+│   ├── tests/               # Frontend component tests (Vitest)
 │   └── package.json
 ├── server/                  # Express backend
 │   ├── prisma/              # Schema, migrations, seed
 │   ├── src/                 # API source code
-│   ├── tests/               # Backend tests (Supertest)
+│   ├── uploads/             # Attachment disk storage (UUID)
+│   ├── tests/               # Backend API tests (Supertest)
 │   └── package.json
+├── e2e/                     # End-to-End test suites
+│   └── lab-02/
+│       └── requester-ticket-flow.spec.ts
 ├── docs/                    # Documentation
-│   └── lab-01/
-│       ├── ai_use.md
-│       ├── reviewer.md
-│       └── tests.md
+│   ├── lab-01/              # Lab 1 deliverables
+│   └── lab-02/              # Lab 2 Sprint deliverables
+│       ├── specification.md # Sprint engineering specification
+│       ├── ui-spec.md       # Zen Green UI specification
+│       ├── api-spec.md      # REST API contracts
+│       ├── tests.md         # Traceability matrix & test plan
+│       ├── reviewer.md      # Peer review records (@FramePongrit, @Leviathan-c137)
+│       └── ai_use.md        # AI prompt & reflection record
+├── playwright.config.ts     # Playwright configuration
+├── docker-compose.yml       # PostgreSQL database container
 ├── .gitignore
 └── README.md
 ```
@@ -90,7 +103,7 @@ toktickit/
 
 | Variable       | Description                        | Example                                                              |
 | -------------- | ---------------------------------- | -------------------------------------------------------------------- |
-| `DATABASE_URL` | PostgreSQL connection string       | `postgresql://toktickit:toktickit@localhost:5432/toktickit?schema=public` |
+| `DATABASE_URL` | PostgreSQL connection string       | `postgresql://postgres:postgres@localhost:5433/toktickit?schema=public` |
 | `PORT`         | API server port                    | `3000`                                                               |
 
 ### Client (`client/.env`)
@@ -101,8 +114,8 @@ toktickit/
 
 ## Git Workflow
 
-- `main` — stable release branch
-- `lab1-staging` — Lab 1 integration branch
-- `feature/*` — individual feature branches per Issue
+- `main` — stable production release branch
+- `lab2-staging` — Lab 2 Sprint integration branch
+- `feature/lab2-*` — individual increment feature branches per Issue
 
-All features are developed on feature branches, merged into `lab1-staging` via Pull Request with peer review, then released to `main`.
+All features are developed on dedicated feature branches, merged into `lab2-staging` via Pull Request with peer review and DoD verification, then released into `main` via Release PR.

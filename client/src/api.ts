@@ -5,16 +5,24 @@ export interface Category {
   name: string;
 }
 
+export interface RelatedSystem {
+  id: number;
+  name: string;
+}
+
+export interface Requester {
+  id: number;
+  name: string;
+  email: string;
+  active: boolean;
+}
+
 export interface SystemStatus {
   online: boolean;
   categories: Category[];
 }
 
-// Issue 2 + Issue 4 — call the backend.
-// Steps: fetch `${API_URL}/api/health`; if not ok, throw.
-//        then fetch `${API_URL}/api/categories`; if not ok, throw.
-//        return { online: true, categories }.
-// Throwing on failure lets the UI show a single Offline/error state.
+// Lab 1: System check
 export async function checkSystem(): Promise<SystemStatus> {
   const healthRes = await fetch(`${API_URL}/api/health`);
   if (!healthRes.ok) throw new Error("Health check failed");
@@ -25,3 +33,213 @@ export async function checkSystem(): Promise<SystemStatus> {
 
   return { online: true, categories };
 }
+
+// Lab 2 — Issue 2: Fetch Active Development Requesters
+export async function fetchRequesters(): Promise<Requester[]> {
+  const res = await fetch(`${API_URL}/api/requesters`);
+  if (!res.ok) throw new Error("Failed to fetch requesters");
+  return res.json();
+}
+
+// Lab 2 — Issue 2: Fetch Related Systems
+export async function fetchRelatedSystems(): Promise<RelatedSystem[]> {
+  const res = await fetch(`${API_URL}/api/related-systems`);
+  if (!res.ok) throw new Error("Failed to fetch related systems");
+  return res.json();
+}
+
+// Lab 2 — Issue 3: Fetch Categories (standalone)
+export async function fetchCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_URL}/api/categories`);
+  if (!res.ok) throw new Error("Failed to fetch categories");
+  return res.json();
+}
+
+// Lab 2 — Issue 3: Ticket Types & Creation
+export interface Ticket {
+  id: number;
+  ticketNumber: string;
+  ticketDate: string;
+  summary: string;
+  description: string;
+  priority: string;
+  status: string;
+  requesterId: number;
+  categoryId: number;
+  relatedSystemId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTicketPayload {
+  requesterId: number;
+  categoryId: number;
+  relatedSystemId: number;
+  priority: string;
+  summary: string;
+  description: string;
+}
+
+export async function createTicket(payload: CreateTicketPayload): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to create ticket");
+  }
+  return res.json();
+}
+
+// Lab 2 — Issue 4: Ticket Listing & Pagination Types
+export interface TicketListItem {
+  id: number;
+  ticketNumber: string;
+  ticketDate: string;
+  summary: string;
+  description?: string;
+  priority: string;
+  status: string;
+  requesterId?: number;
+  categoryId?: number;
+  relatedSystemId?: number;
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  attachmentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaginationMetadata {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface TicketListResponse {
+  tickets: TicketListItem[];
+  pagination: PaginationMetadata;
+}
+
+export interface TicketQueryFilters {
+  requesterId: number;
+  search?: string;
+  categoryId?: string | number;
+  priority?: string;
+  status?: string;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function fetchTickets(filters: TicketQueryFilters): Promise<TicketListResponse> {
+  const params = new URLSearchParams();
+  params.set("requesterId", String(filters.requesterId));
+
+  if (filters.search) params.set("search", filters.search);
+  if (filters.categoryId) params.set("categoryId", String(filters.categoryId));
+  if (filters.priority) params.set("priority", filters.priority);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.limit) params.set("limit", String(filters.limit));
+
+  const res = await fetch(`${API_URL}/api/tickets?${params.toString()}`);
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch tickets");
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Lab 2 — Issue 5: Ticket Detail & Attachment Types & Functions
+// ---------------------------------------------------------------------------
+export interface AttachmentItem {
+  id: number;
+  originalName: string;
+  sizeBytes: number;
+  mimeType: string;
+  active: boolean;
+  removalReason?: string | null;
+  removedAt?: string | null;
+  createdAt: string;
+}
+
+export interface TicketDetail {
+  id: number;
+  ticketNumber: string;
+  ticketDate: string;
+  summary: string;
+  description: string;
+  priority: string;
+  status: string;
+  requester: { id: number; name: string; email: string };
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  attachments: AttachmentItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchTicketDetail(
+  ticketId: number,
+  requesterId: number
+): Promise<TicketDetail> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}?requesterId=${requesterId}`);
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch ticket detail");
+  }
+  return res.json();
+}
+
+export async function uploadAttachment(
+  ticketId: number,
+  requesterId: number,
+  file: File
+): Promise<AttachmentItem> {
+  const formData = new FormData();
+  formData.append("requesterId", String(requesterId));
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to upload attachment");
+  }
+  return res.json();
+}
+
+export function getAttachmentDownloadUrl(
+  attachmentId: number,
+  requesterId: number
+): string {
+  return `${API_URL}/api/attachments/${attachmentId}/download?requesterId=${requesterId}`;
+}
+
+export async function removeAttachment(
+  attachmentId: number,
+  requesterId: number,
+  reason: string
+): Promise<AttachmentItem> {
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/remove`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requesterId, reason }),
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to remove attachment");
+  }
+  return res.json();
+}
+
