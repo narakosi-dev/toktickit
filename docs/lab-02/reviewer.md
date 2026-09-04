@@ -1,6 +1,6 @@
 # Lab 2 — Peer Review Record
 
-**Author:** Narakorn (narakosi) — GitHub: [@narakosi-dev](https://github.com/narakosi-dev)  
+**Author:** Nara Kosiyaporn — Student ID: 67070505218 — GitHub: [@narakosi-dev](https://github.com/narakosi-dev)  
 **Peer Reviewers:**
 - Pongrit (Frame) — GitHub: [@FramePongrit](https://github.com/FramePongrit)
 - GitHub: [@Leviathan-c137](https://github.com/Leviathan-c137)

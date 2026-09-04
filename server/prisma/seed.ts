@@ -43,6 +43,16 @@ async function main() {
   // 3. Seed Development Requesters (at least 4 active, 1 inactive)
   const requesters = [
     {
+      name: "Nara Kosiyaporn",
+      email: "nara.kosi@kmutt.ac.th",
+      active: true,
+    },
+    {
+      name: "Sunny farmhouse",
+      email: "nara2012sun@gmail.com",
+      active: true,
+    },
+    {
       name: "Jennifer Anderson",
       email: "jennifer.anderson@example.com",
       active: true,

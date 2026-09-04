@@ -19,18 +19,19 @@ test.describe("Automated Screenshot Capture for Lab 2 Report", () => {
     await page.setViewportSize({ width: 1280, height: 850 });
     await page.goto("http://localhost:5173");
 
-    // 01: Dev Requester Selector Screen
+    // Select "Nara Kosiyaporn"
     await expect(page.getByText("Select Development Requester")).toBeVisible();
+    await page.selectOption("#requester-select", { label: "Nara Kosiyaporn (nara.kosi@kmutt.ac.th)" });
+
+    // 01: Dev Requester Selector Screen
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "create-ticket/01-dev-requester-select.png"),
     });
 
-    // Select "Jennifer Anderson"
-    await page.selectOption("#requester-select", { label: "Jennifer Anderson (jennifer.anderson@example.com)" });
     await page.getByRole("button", { name: /Continue/i }).click();
 
     // Verify inside portal
-    await expect(page.getByText("Jennifer Anderson")).toBeVisible();
+    await expect(page.getByText("Nara Kosiyaporn")).toBeVisible();
 
     // Navigate to Create Ticket
     await page.getByRole("button", { name: /Create Ticket/i }).click();
@@ -205,17 +206,24 @@ test.describe("Automated Screenshot Capture for Lab 2 Report", () => {
     // ----------------------------------------------------
     await page.getByRole("button", { name: /Change Requester/i }).click();
     await expect(page.getByText("Select Development Requester")).toBeVisible();
-    await page.selectOption("#requester-select", { label: "Michael Brown (michael.brown@example.com)" });
+    await page.selectOption("#requester-select", { label: "Sunny farmhouse (nara2012sun@gmail.com)" });
     await page.getByRole("button", { name: /Continue/i }).click();
 
-    await expect(page.getByText("Michael Brown")).toBeVisible();
+    await expect(page.getByText("Sunny farmhouse")).toBeVisible();
     await page.getByRole("button", { name: /My Tickets/i }).click();
+    await expect(page.getByText("Loading your tickets...")).not.toBeVisible();
+    await page.waitForTimeout(400);
 
-    // Jennifer's ticket is strictly NOT visible
+    // Nara's ticket is strictly NOT visible
     await expect(page.getByText(ticketNumber)).toHaveCount(0);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "my-tickets/16-my-tickets-requester-b-isolation.png"),
     });
+
+    // Switch back to Nara Kosiyaporn for responsive screenshots
+    await page.getByRole("button", { name: /Change Requester/i }).click();
+    await page.selectOption("#requester-select", { label: "Nara Kosiyaporn (nara.kosi@kmutt.ac.th)" });
+    await page.getByRole("button", { name: /Continue/i }).click();
 
     // ----------------------------------------------------
     // PART 9: Responsive Viewports Evidence (Zen Green)

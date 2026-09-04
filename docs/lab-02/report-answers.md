@@ -1,7 +1,8 @@
 # CPE334 Software Engineering — Lab 2 Report Submission
 **Course:** CPE334 Introduction to Software Engineering in the Age of AI Agents  
 **Semester:** 1/2026  
-**Student Name:** Narakorn (narakosi)  
+**Student Name:** Nara Kosiyaporn  
+**Student ID:** 67070505218  
 **Student GitHub:** [@narakosi-dev](https://github.com/narakosi-dev)  
 **Repository:** [https://github.com/narakosi-dev/toktickit](https://github.com/narakosi-dev/toktickit)  
 **Release PR:** [https://github.com/narakosi-dev/toktickit/pull/22](https://github.com/narakosi-dev/toktickit/pull/22)  
@@ -12,7 +13,7 @@
 ## Answer Part 1: Git Use with Engineering Workflow (10 Points)
 
 ### 1.1 Git Commit History & Branching Workflow
-The project follows a disciplined staging git workflow:  
+The project strictly implements the staged engineering git workflow:  
 `feature/*` branches → Pull Requests with Peer Reviews → `lab2-staging` → Release Pull Request (#22) → `main`.
 
 ```text
@@ -47,7 +48,7 @@ The project follows a disciplined staging git workflow:
 ```
 
 ### 1.2 GitHub Projects (Kanban Board) Evidence
-All 6 Sprint 2 Issues were decomposed, tracked, and moved through `Backlog` → `Specified` → `Started` → `PR Review` → `Done`:
+All 6 Sprint 2 Issues were decomposed, tracked, and progressed through `Backlog` → `Specified` → `Started` → `PR Review` → `Done`:
 - **Issue 1:** Spec-Driven Development & Test Plan (`docs/lab-02/`) — **Done**
 - **Issue 2:** Development Requester Context & Seed Foundation — **Done**
 - **Issue 3:** Ticket Creation Flow & Unique Number Generation — **Done**
@@ -56,7 +57,7 @@ All 6 Sprint 2 Issues were decomposed, tracked, and moved through `Backlog` → 
 - **Issue 6:** End-to-End User Journeys, Multi-Viewport Validation & Documentation — **Done**
 
 ### 1.3 Rendered Peer Review Record (`docs/lab-02/reviewer.md`)
-- **Author:** Narakorn ([@narakosi-dev](https://github.com/narakosi-dev))
+- **Author:** Nara Kosiyaporn — Student ID: 67070505218 ([@narakosi-dev](https://github.com/narakosi-dev))
 - **Peer Reviewers:** Pongrit ([@FramePongrit](https://github.com/FramePongrit)), [@Leviathan-c137](https://github.com/Leviathan-c137)
 
 #### PRs Authored by Me & Reviewed by Peers:
@@ -107,6 +108,7 @@ toktickit/
 │   └── lab-02/
 │       ├── ai_use.md
 │       ├── api-spec.md
+│       ├── report-answers.md
 │       ├── reviewer.md
 │       ├── specification.md
 │       ├── tests.md
@@ -249,7 +251,7 @@ playwright-report/
 8. *"Generate GitHub Pull Request templates, peer-review comments, and Definition of Done checklists for partner collaboration."*
 
 ### My Reflection on AI Use Experience:
-Working with an AI coding agent fundamentally shifted development from manual typing to **engineering orchestration and verification**. By providing concrete acceptance criteria, explicit HTTP error boundaries (e.g. `404 Not Found` for unowned tickets to prevent enumeration and `410 Gone` for soft-removed downloads), and strict design tokens up front, the agent produced zero-defect code on the first pass. The primary responsibility remained with the human engineer: verifying test results against the database and inspecting responsive layouts to prevent visual clipping.
+Working with an AI coding agent fundamentally shifted development from manual typing to **engineering orchestration, specification guidance, and verification**. By providing concrete acceptance criteria, explicit HTTP error boundaries (e.g. `404 Not Found` for unowned tickets to prevent enumeration and `410 Gone` for soft-removed downloads), and strict design tokens up front, the agent produced zero-defect code on the first pass. The primary responsibility remained with the human engineer: verifying test results against the database and inspecting responsive layouts to prevent visual clipping.
 
 ---
 
@@ -258,9 +260,10 @@ Working with an AI coding agent fundamentally shifted development from manual ty
 
 The Development Requester Selector simulates authenticated sessions for Lab 2 before full authentication is introduced in Lab 3:
 - Excludes inactive requesters (`active: false`, e.g., `inactive.tester@example.com`).
-- Populates dropdown with active seeded requesters (`Jennifer Anderson`, `Michael Brown`, `Sarah Johnson`, `David Lee`).
+- Populates dropdown with active seeded requesters (`Nara Kosiyaporn`, `Sunny farmhouse`, `Sarah Johnson`, `David Lee`).
 - Persists selected user in React Context and displays name/email in the application header with a `Change Requester` button.
-- **Evidence Screenshot:** `artifacts/lab-02/screenshots/create-ticket/01-dev-requester-select.png`
+- **Evidence Screenshot:** `artifacts/lab-02/screenshots/create-ticket/01-dev-requester-select.png`  
+  *(Shows `Nara Kosiyaporn (nara.kosi@kmutt.ac.th)` selected in the Development Requester dropdown).*
 
 ---
 
@@ -269,10 +272,10 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
 ### Evidence Screenshots:
 1. **Requester Population & Selection:**  
    `artifacts/lab-02/screenshots/create-ticket/01-dev-requester-select.png`  
-   *Demonstrates choosing active requester "Jennifer Anderson" and confirming user identity displayed in header.*
+   *Demonstrates choosing active requester "Nara Kosiyaporn" (nara.kosi@kmutt.ac.th) and confirming user identity displayed in header.*
 2. **Desktop Viewport & Loaded Reference Data:**  
    `artifacts/lab-02/screenshots/create-ticket/02-create-ticket-initial-desktop.png`  
-   *Displays Category dropdown (Account and Access, Hardware, Software, Network) and Related System dropdown (Corporate Laptop, Email, VPN, etc.) loaded dynamically from PostgreSQL.*
+   *Displays Category dropdown (Account and Access, Hardware, Software, Network) and Related System dropdown (Corporate Laptop, Email, VPN, etc.) loaded dynamically from PostgreSQL with `Nara Kosiyaporn` in header.*
 3. **Validation Errors on Invalid Submit:**  
    `artifacts/lab-02/screenshots/create-ticket/03-create-ticket-validation-errors.png`  
    *Displays field-level error messages below controls ("Category is required", "Summary is required", "Description is required").*
@@ -281,7 +284,7 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
    *Demonstrates simulated backend 500 error showing alert banner while preserving entered Summary ("MacBook Pro M3 battery drains abnormally fast") and Description without data loss.*
 5. **Successful Creation & Official Ticket Number (BR-01):**  
    `artifacts/lab-02/screenshots/create-ticket/05-create-ticket-success-official-number.png`  
-   *Displays success dialog showing generated official Ticket Number (e.g., `TKT-2026-000067`), initial status `New`, and action buttons.*
+   *Displays success dialog showing generated official Ticket Number (e.g., `TKT-2026-000072`), initial status `New`, and action buttons.*
 
 ---
 
@@ -290,10 +293,10 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
 ### Evidence Screenshots:
 1. **Requester A's Ticket List:**  
    `artifacts/lab-02/screenshots/my-tickets/06-my-tickets-requester-a.png`  
-   *Displays tickets belonging strictly to Jennifer Anderson with Ticket Number, Summary, Category, Priority, and Status badges.*
+   *Displays tickets belonging strictly to Nara Kosiyaporn with Ticket Number, Summary, Category, Priority, and Status badges.*
 2. **Category Filtering:**  
    `artifacts/lab-02/screenshots/my-tickets/07-my-tickets-filter-category.png`  
-   *Filters list to display only "Hardware" tickets.*
+   *Filters list to display only "Account and Access" or "Hardware" tickets.*
 3. **Priority Filtering:**  
    `artifacts/lab-02/screenshots/my-tickets/08-my-tickets-filter-priority.png`  
    *Filters list to display only "High" priority tickets.*
@@ -305,7 +308,7 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
    *Displays clear empty state with "Clear Filters" button when search keyword has 0 matches.*
 6. **Data Isolation (Switch to Requester B):**  
    `artifacts/lab-02/screenshots/my-tickets/16-my-tickets-requester-b-isolation.png`  
-   *Switches to Michael Brown; Jennifer Anderson's tickets completely disappear from view, proving strict ownership isolation.*
+   *Switches to Requester B: "Sunny farmhouse (nara2012sun@gmail.com)"; Nara Kosiyaporn's tickets completely disappear from view, displaying the clean "No Tickets Yet" empty state, proving strict ownership isolation.*
 
 ---
 
@@ -314,7 +317,7 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
 ### Evidence Screenshots:
 1. **Owned Ticket Detail View:**  
    `artifacts/lab-02/screenshots/ticket-detail/11-ticket-detail-view.png`  
-   *Displays read-only ticket header, metadata grid (Category, Related System, Requester Email), description card, and active attachment count (`0 / 5 active attachments`).*
+   *Displays read-only ticket header, metadata grid showing Requester "Nara Kosiyaporn" and Contact Email "nara.kosi@kmutt.ac.th", description card, and active attachment count (`0 / 5 active attachments`).*
 2. **Invalid Attachment Type Rejection:**  
    `artifacts/lab-02/screenshots/ticket-detail/12-ticket-detail-invalid-attachment.png`  
    *Selecting an unsupported `.txt` file triggers client-side validation: "Unsupported file type. Permitted: JPG, PNG, WEBP, PDF."*
@@ -326,7 +329,7 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
    *Clicking Remove opens modal requiring non-empty reason ("Replaced by updated diagnostic screenshot", minimum 5 chars).*
 5. **Soft-Removed State & Download Blocked:**  
    `artifacts/lab-02/screenshots/ticket-detail/15-ticket-detail-soft-removed-state.png`  
-   *Attachment displays red "Removed" badge, shows audit reason quote and timestamp; download button is permanently disabled with `410 Gone` backend protection.*
+   *Attachment displays red "Removed" badge, shows audit reason quote and timestamp; download action is disabled with "Download unavailable" and `410 Gone` backend protection.*
 6. **Cross-Requester Protection:**  
    *Direct API access to another requester's ticket returns `404 Not Found` (`{"error": "Ticket not found or unauthorized access"}`), preventing ID enumeration.*
 
@@ -339,7 +342,7 @@ The Development Requester Selector simulates authenticated sessions for Lab 2 be
 ### 9.1 Multi-Viewport Screenshots:
 1. **Desktop Viewport (1200px):**  
    `artifacts/lab-02/screenshots/responsive/17-responsive-desktop-1200px.png`  
-   *Two-column form layout, wide navigation bar, spacious ticket metadata.*
+   *Two-column form layout, wide navigation bar, spacious ticket metadata with `Nara Kosiyaporn` displayed.*
 2. **Tablet Viewport (800px):**  
    `artifacts/lab-02/screenshots/responsive/18-responsive-tablet-800px.png`  
    *Adaptive two-column form, touch-friendly form controls, zero clipping.*
