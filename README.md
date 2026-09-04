@@ -89,7 +89,7 @@ toktickit/
 │       ├── ui-spec.md       # Zen Green UI specification
 │       ├── api-spec.md      # REST API contracts
 │       ├── tests.md         # Traceability matrix & test plan
-│       ├── reviewer.md      # Peer review records (@FramePongrit)
+│       ├── reviewer.md      # Peer review records (@FramePongrit, @Beethoven190, @Leviathan-c137, @SANOP19)
 │       └── ai_use.md        # AI prompt & reflection record
 ├── playwright.config.ts     # Playwright configuration
 ├── docker-compose.yml       # PostgreSQL database container
