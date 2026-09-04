@@ -15,7 +15,7 @@
 | **5** | *"Implement Ticket Detail view and attachment management with upload limits, download streaming, and soft-removal with mandatory audit reasons."* | Configured `multer` disk storage in `server/uploads/`, implemented `410 Gone` download blocking for soft-removed files, and created `TicketDetail.tsx` with modal dialog. |
 | **6** | *"Write Playwright E2E automated test verifying complete requester journey: login, ticket creation, list filtering, attachment upload, soft-removal, and user switching."* | Implemented `e2e/lab-02/requester-ticket-flow.spec.ts` testing the complete lifecycle and multi-viewport responsive layouts (Desktop, Tablet, Mobile). |
 | **7** | *"Debug Vitest test failure where desktop table and mobile cards render duplicate elements simultaneously."* | Adjusted component test assertions to use `screen.getAllByText(...)` or scoped role queries to accurately reflect responsive DOM structures. |
-| **8** | *"Generate GitHub Pull Request templates, peer-review comments, and Definition of Done checklists for partner collaboration."* | Facilitated seamless code reviews and collaboration with peers (`@FramePongrit`, `@Beethoven190`, `@Leviathan-c137`, `@SANOP19`) across all PR increments. |
+| **8** | *"Generate GitHub Pull Request templates, peer-review comments, and Definition of Done checklists for partner collaboration."* | Facilitated seamless code reviews and collaboration with peers (`@FramePongrit`, `@Leviathan-c137`) across all PR increments. |
 
 ---
 
