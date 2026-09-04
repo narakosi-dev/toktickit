@@ -47,3 +47,48 @@ export async function fetchRelatedSystems(): Promise<RelatedSystem[]> {
   if (!res.ok) throw new Error("Failed to fetch related systems");
   return res.json();
 }
+
+// Lab 2 — Issue 3: Fetch Categories (standalone)
+export async function fetchCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_URL}/api/categories`);
+  if (!res.ok) throw new Error("Failed to fetch categories");
+  return res.json();
+}
+
+// Lab 2 — Issue 3: Ticket Types & Creation
+export interface Ticket {
+  id: number;
+  ticketNumber: string;
+  ticketDate: string;
+  summary: string;
+  description: string;
+  priority: string;
+  status: string;
+  requesterId: number;
+  categoryId: number;
+  relatedSystemId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTicketPayload {
+  requesterId: number;
+  categoryId: number;
+  relatedSystemId: number;
+  priority: string;
+  summary: string;
+  description: string;
+}
+
+export async function createTicket(payload: CreateTicketPayload): Promise<Ticket> {
+  const res = await fetch(`${API_URL}/api/tickets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to create ticket");
+  }
+  return res.json();
+}
