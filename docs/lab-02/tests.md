@@ -36,7 +36,7 @@ Testing follows a strict **Test-Driven Development (TDD)** and **Test-Driven Des
 | **UI-05** | UI | API Failure Resilience | Backend returns 500 on submit | Error banner shown; entered summary & description preserved | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | **UI-06** | UI | My Tickets Table | Render tickets list | Displays ticket number, summary, badges, and empty/no-results states | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | **UI-07** | UI | Detail & Soft Removal | Open ticket detail, trigger remove | Prompts for removal reason modal; updates item to "Removed" | `client/tests/lab-02/TicketDetail.test.tsx` | Pass |
-| **E2E-01**| E2E | Full Requester Flow | Select user → create ticket → verify in list → check details → switch user isolation | End-to-end user journey passes completely | `e2e/lab-02/requester-ticket-flow.spec.ts` | Planned |
+| **E2E-01**| E2E | Full Requester Flow | Select user → create ticket → verify in list → check details → switch user isolation | End-to-end user journey passes completely | `e2e/lab-02/requester-ticket-flow.spec.ts` | Pass |
 
 ---
 

@@ -33,14 +33,14 @@ export default function AppShell() {
   return (
     <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: "var(--zen-bg)" }}>
       {/* Top Navbar Header */}
-      <header className="zen-header d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div className="d-flex align-items-center gap-3">
+      <header className="zen-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div className="d-flex flex-wrap align-items-center gap-2">
           <div className="navbar-brand d-flex align-items-center gap-2 m-0">
             <span>⏱️</span>
             <span>TokTickIT</span>
           </div>
 
-          <nav className="d-flex align-items-center gap-1">
+          <nav className="d-flex flex-wrap align-items-center gap-1">
             <button
               type="button"
               className={`zen-nav-btn ${activeTab === "my-tickets" || activeTab === "ticket-detail" ? "active" : ""}`}
@@ -75,7 +75,7 @@ export default function AppShell() {
         </div>
 
         {/* User Identity & Switcher */}
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex flex-wrap align-items-center gap-2">
           <div className="d-flex align-items-center gap-2 text-white">
             <span style={{ fontSize: "1.2rem" }}>👤</span>
             <div>
