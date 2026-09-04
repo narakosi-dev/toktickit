@@ -107,7 +107,7 @@ function codeBlock(codeText) {
   );
 }
 
-function embedImage(relPath, width = 560, height = 350) {
+function embedImage(relPath, width = 540, height = 340) {
   const fullPath = path.join(SCREENSHOTS_DIR, relPath);
   if (!fs.existsSync(fullPath)) {
     return [p(`[Image file not found: ${relPath}]`, true, true, "B02A37")];
@@ -203,11 +203,11 @@ function createTable(headers, rows, colWidths = []) {
 
 // Generate Document
 async function generateDocx() {
-  console.log("Generating Lab 2 Report Word Document...");
+  console.log("Generating Comprehensive Lab 2 Report Word Document with Code Evidence...");
 
   const doc = new Document({
     title: "CPE334 Lab 2 Report — Nara Kosiyaporn",
-    description: "Lab 2 TokTickIT Requester Ticketing MVP with UI Foundation",
+    description: "Lab 2 TokTickIT Requester Ticketing MVP with UI Foundation and Code Architecture",
     styles: {
       default: {
         document: {
@@ -250,7 +250,7 @@ async function generateDocx() {
             spacing: { before: 0, after: 240 },
             children: [
               new TextRun({
-                text: "Lab 2: TokTickIT Requester Ticketing MVP with UI Foundation — Sprint Report",
+                text: "Lab 2: TokTickIT Requester Ticketing MVP with UI Foundation & Code Architecture",
                 bold: true,
                 size: 24,
                 color: ZEN_SECONDARY,
@@ -283,7 +283,7 @@ async function generateDocx() {
           // ==========================================
           heading1("Answer Part 1: Git Use with Engineering Workflow (10 Points)"),
           p(
-            "The repository strictly follows the course engineering workflow: features are developed on dedicated feature branches, reviewed and approved via Pull Requests, integrated into lab2-staging, and released into main via a final Release Pull Request."
+            "The repository strictly adheres to the course engineering workflow: features are developed on dedicated feature branches, peer-reviewed and approved via Pull Requests, integrated into lab2-staging, and released into main via a final Release Pull Request (#22)."
           ),
 
           heading2("1.1 Git Commit History & Branching Workflow"),
@@ -360,10 +360,11 @@ toktickit/
 ├── artifacts/
 │   └── lab-02/
 │       └── screenshots/
-│           ├── create-ticket/
-│           ├── my-tickets/
-│           ├── ticket-detail/
-│           └── responsive/
+│           ├── code/              # 9 IDE Code Implementation Screenshots
+│           ├── create-ticket/     # 5 UI Screenshots (Requester, Form, 500, TKT#)
+│           ├── my-tickets/        # 6 UI Screenshots (Search, Filter, Isolation)
+│           ├── ticket-detail/     # 5 UI Screenshots (Read-only, Upload, Soft-remove)
+│           └── responsive/        # 4 UI Screenshots (1200px, 800px, 375px)
 ├── client/
 │   ├── src/
 │   │   ├── components/
@@ -432,7 +433,7 @@ playwright-report/
           // ==========================================
           // PART 2
           // ==========================================
-          heading1("Answer Part 2: Spec DD (5 Points)"),
+          heading1("Answer Part 2: Spec DD & Database Architecture (5 Points)"),
           p(
             "Specification Link: https://github.com/narakosi-dev/toktickit/blob/main/docs/lab-02/specification.md"
           ),
@@ -457,12 +458,35 @@ playwright-report/
           p("• BR-06 & BR-07: Max 5 active attachments per ticket; soft-removal records active: false, timestamp, and audit reason while preserving file on disk."),
           p("• BR-08: Field lengths: Summary (5–120 chars), Description (10–2000 chars), Removal Reason (5–500 chars)."),
 
+          heading2("2.3 Code Architecture: Prisma Schema (server/prisma/schema.prisma)"),
+          p(
+            "The data model defines strict relational integrity with foreign keys, indexes, and soft-removal audit fields:"
+          ),
+          ...embedImage("code/01-code-prisma-schema.png", 500, 489),
+          caption("Code Figure 1: Prisma Schema showing Requester, RelatedSystem, Ticket, and Attachment with soft-removal fields."),
+          p("Key Data Architecture Highlights:"),
+          p("• Requester Model: Includes boolean 'active' field so inactive test accounts can be preserved in the database but filtered out from UI selection (BR-04)."),
+          p("• Ticket Model: Enforces unique 'ticketNumber', relates to Requester and Category, and defaults status to 'New' (BR-02)."),
+          p("• Attachment Model: Soft-removal is supported via 'active Boolean @default(true)', 'removalReason String?', and 'removedAt DateTime?' to retain files for security audits while preventing end-user downloads (BR-06, BR-07)."),
+
+          heading2("2.4 Code Architecture: Database Seed (server/prisma/seed.ts)"),
+          p(
+            "The database seed script sets up predictable reference data and user personas for consistent testing:"
+          ),
+          ...embedImage("code/02-code-prisma-seed.png", 540, 305),
+          caption("Code Figure 2: Prisma Seed script establishing Primary Requester (Nara Kosiyaporn), Secondary Requester (Sunny farmhouse), and inactive accounts."),
+          p("Seed Data Configuration:"),
+          p("• Primary Requester: Nara Kosiyaporn (nara.kosi@kmutt.ac.th) — active: true."),
+          p("• Secondary Requester: Sunny farmhouse (nara2012sun@gmail.com) — active: true."),
+          p("• Inactive Requester: Inactive Tester (inactive.tester@example.com) — active: false (verifies exclusion)."),
+          p("• 4 Categories (Account and Access, Hardware, Software, Network) and 6 Related Systems."),
+
           new Paragraph({ spacing: { after: 200 } }),
 
           // ==========================================
           // PART 3
           // ==========================================
-          heading1("Answer Part 3: Test DD and Traceability (10 Points)"),
+          heading1("Answer Part 3: Test DD, Traceability & E2E Validation (10 Points)"),
           p(
             "Test Plan Link: https://github.com/narakosi-dev/toktickit/blob/main/docs/lab-02/tests.md"
           ),
@@ -489,7 +513,18 @@ playwright-report/
             [10, 8, 14, 30, 30, 8]
           ),
 
-          heading2("3.2 Passing Test Output from main Branch"),
+          heading2("3.2 Code Architecture: Playwright E2E Test Suite (e2e/lab-02/requester-ticket-flow.spec.ts)"),
+          p(
+            "The automated Playwright E2E suite verifies complete end-to-end user workflows and responsive behavior:"
+          ),
+          ...embedImage("code/09-code-e2e-playwright.png", 540, 354),
+          caption("Code Figure 3: Playwright E2E automated test verifying requester journey, responsive viewports, and zero horizontal scroll."),
+          p("Automated E2E Assertions:"),
+          p("• Full Requester Journey: Selects Nara Kosiyaporn -> Creates Ticket -> Checks Form Validation -> Submits Ticket -> Verifies in My Tickets -> Views Details -> Uploads Attachment -> Soft-Removes with Reason."),
+          p("• Multi-Viewport Assertions: Automatically iterates over Desktop (1280x720), Tablet (800x1024), and Mobile (375x667)."),
+          p("• Zero Horizontal Overflow: Verifies 'document.documentElement.scrollWidth <= clientWidth' at 375px mobile viewport."),
+
+          heading2("3.3 Passing Test Output from main Branch"),
           ...codeBlock(`
 === SERVER VITEST TEST SUITE ===
  ✓ tests/lab-01/health.test.ts (1 test)
@@ -590,12 +625,38 @@ playwright-report/
             "Figure 5: Confirmation view displaying official generated Ticket Number (TKT-2026-000072), initial status 'New', and action buttons."
           ),
 
+          heading2("6.1 Code Architecture: Frontend Requester Context (client/src/context/RequesterContext.tsx)"),
+          p(
+            "The React Requester Context acts as the dev harness, persisting the active identity in localStorage across page refreshes:"
+          ),
+          ...embedImage("code/06-code-frontend-requester-context.png", 540, 292),
+          caption("Code Figure 4: React Context managing selected development requester with localStorage persistence."),
+
+          heading2("6.2 Code Architecture: Backend Ticket Creation & Unique Number (server/src/app.ts)"),
+          p(
+            "The POST /api/tickets endpoint handles validation and transactional ticket number generation:"
+          ),
+          ...embedImage("code/03-code-api-ticket-creation.png", 500, 500),
+          caption("Code Figure 5: POST /api/tickets implementation with TKT-YYYY-NNNNNN generation and boundary validation."),
+          p("Implementation Details:"),
+          p("• Ticket Number Format: 'TKT-YYYY-NNNNNN' (e.g. TKT-2026-000072) generated using the current year and 6-digit zero-padded sequence (BR-01)."),
+          p("• Boundary Validation: Rejects summaries under 5 or over 120 chars; rejects descriptions under 10 or over 2000 chars (BR-08)."),
+          p("• Default Status: Set to 'New' upon creation (BR-02)."),
+
+          heading2("6.3 Code Architecture: Frontend Ticket Creation Form (client/src/components/CreateTicket.tsx)"),
+          p(
+            "CreateTicket.tsx implements field-level validation and 500 API failure resilience:"
+          ),
+          ...embedImage("code/07-code-frontend-create-ticket.png", 540, 420),
+          caption("Code Figure 6: CreateTicket.tsx form submission, client-side validation, and error-resilience state preservation."),
+          p("Key Resilience Feature: When an HTTP 500 error occurs, entered form state is preserved completely, and an error banner is displayed without clearing fields, preventing frustrating data loss (FR-06, AC-06)."),
+
           new Paragraph({ spacing: { after: 200 } }),
 
           // ==========================================
           // PART 7
           // ==========================================
-          heading1("Answer Part 7: Working My Tickets Screen (10 Points)"),
+          heading1("Answer Part 7: Working My Tickets Screen & Ownership Isolation (10 Points)"),
           p(
             "Demonstrates ticket list retrieval, real-time keyword search, category filtering, priority filtering, empty states, and strict ownership isolation when switching requesters."
           ),
@@ -636,6 +697,17 @@ playwright-report/
             "Figure 11: Switched to Sunny farmhouse (nara2012sun@gmail.com); Nara Kosiyaporn's tickets are completely hidden, displaying empty state 'No Tickets Yet'."
           ),
 
+          heading2("7.1 Code Architecture: Backend Ownership Isolation (server/src/app.ts)"),
+          p(
+            "The GET /api/tickets endpoint enforces strict requesterId scoping and multi-parameter filtering:"
+          ),
+          ...embedImage("code/04-code-api-ownership-isolation.png", 540, 373),
+          caption("Code Figure 7: GET /api/tickets showing mandatory requesterId scoping, keyword search, filters, and pagination."),
+          p("Ownership & Isolation Enforcement:"),
+          p("• Ownership Scoping: Queries strictly enforce 'where: { requesterId: req.query.requesterId }'. A user cannot view any tickets created by other requesters (BR-05)."),
+          p("• Multi-field Keyword Search: Performs case-insensitive matching across summary, description, and ticketNumber."),
+          p("• Pagination: Implements skip/take logic returning total count, page, and limit."),
+
           new Paragraph({ spacing: { after: 200 } }),
 
           // ==========================================
@@ -675,6 +747,25 @@ playwright-report/
           caption(
             "Figure 16: Attachment displays 'Removed' badge, shows audit reason quote and timestamp; download button is disabled with 'Download unavailable' and 410 Gone backend protection."
           ),
+
+          heading2("8.1 Code Architecture: Attachment Lifecycle & 410 Gone (server/src/app.ts)"),
+          p(
+            "Attachment endpoints handle Multer 5MB limits, soft-removal audit stamping, and 410 Gone download protection:"
+          ),
+          ...embedImage("code/05-code-api-attachments-soft-removal.png", 540, 420),
+          caption("Code Figure 8: Attachment lifecycle implementation: 5MB upload limit, soft-removal PATCH, and 410 Gone download response."),
+          p("Attachment Security & Compliance Highlights:"),
+          p("• Multer Disk Storage & Limits: Enforces 5MB max file size and strictly whitelists image/jpeg, image/png, image/webp, application/pdf."),
+          p("• Active Limit (5): Rejects uploads if active count >= 5 (BR-06)."),
+          p("• Soft-Removal PATCH: Updates record with 'active: false', 'removalReason' (min 5 chars), and 'removedAt: new Date()' while preserving physical file for compliance audit (BR-07)."),
+          p("• 410 Gone Protection: If a user attempts to download an inactive attachment, the server returns HTTP 410 Gone with error message 'Attachment has been removed' (FR-13)."),
+
+          heading2("8.2 Code Architecture: Frontend Soft-Removal Dialog (client/src/components/TicketDetail.tsx)"),
+          p(
+            "TicketDetail.tsx renders the soft-removal modal requiring an audit reason before executing the PATCH request:"
+          ),
+          ...embedImage("code/08-code-frontend-ticket-detail.png", 540, 228),
+          caption("Code Figure 9: TicketDetail.tsx soft-removal modal dialog requiring minimum 5-character audit reason."),
 
           new Paragraph({ spacing: { after: 200 } }),
 
@@ -717,6 +808,31 @@ playwright-report/
               ["Horizontal Scrolling", "Tested at 375px width via Playwright; scrollWidth <= clientWidth with zero horizontal overflow", "Pass"],
             ],
             [25, 65, 10]
+          ),
+
+          new Paragraph({ spacing: { after: 200 } }),
+
+          // ==========================================
+          // SUMMARY / APPENDIX: CODE ADDITIONS
+          // ==========================================
+          heading1("Summary: Complete Lab 2 Code Additions Inventory"),
+          p(
+            "Below is the complete inventory of all files added or enhanced during the Lab 2 Sprint:"
+          ),
+          createTable(
+            ["Layer / Path", "Component / Module", "Issue #", "Key Additions & Capabilities"],
+            [
+              ["server/prisma/schema.prisma", "Prisma ORM", "Issue 2 & 5", "Added Requester (active), RelatedSystem, Ticket (ticketNumber, status: New), and Attachment (active, removalReason, removedAt)."],
+              ["server/prisma/seed.ts", "Database Seed", "Issue 2", "Populated Nara Kosiyaporn (primary), Sunny farmhouse (secondary), active/inactive testers, 4 categories, and 6 related systems."],
+              ["server/src/app.ts", "Express REST API", "Issues 2, 3, 4, 5", "Added POST /api/tickets (TKT-YYYY-NNNNNN), GET /api/tickets (scoped by requesterId), GET /api/tickets/:id, POST attachments (Multer 5MB, limit 5), PATCH soft-removal, and 410 Gone download."],
+              ["client/src/context/RequesterContext.tsx", "React Context", "Issue 2", "Created development requester context, localStorage persistence, and multi-user switcher modal."],
+              ["client/src/components/CreateTicket.tsx", "React Component", "Issue 3", "Built ticket creation form, field validations, 500 error state preservation, and success dialog with official ticket number."],
+              ["client/src/components/MyTickets.tsx", "React Component", "Issue 4", "Implemented ticket list, real-time keyword search, category/priority/status filters, pagination, and mobile card transforms."],
+              ["client/src/components/TicketDetail.tsx", "React Component", "Issue 5", "Developed read-only detail view, attachment upload dropzone, 5-attachment counter, and soft-removal modal with audit reason."],
+              ["client/src/zen-green.css", "Design System CSS", "Issue 1 & 6", "Implemented Zen Green design tokens, responsive breakpoints (1200px, 800px, 375px), badges, and zero horizontal scroll."],
+              ["e2e/lab-02/requester-ticket-flow.spec.ts", "Playwright E2E", "Issue 6", "Automated full requester journey assertions and responsive viewport layout verification."],
+            ],
+            [25, 18, 12, 45]
           ),
         ],
       },
