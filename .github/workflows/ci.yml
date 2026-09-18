@@ -1,0 +1,140 @@
+name: TokTickIT CI
+
+on:
+  push:
+    branches: [main, lab2-staging]
+  pull_request:
+    branches: [main, lab2-staging]
+
+jobs:
+  test-server:
+    name: Server Tests & Integration
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: toktickit
+          POSTGRES_PASSWORD: toktickit_dev_password
+          POSTGRES_DB: toktickit_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
+      - name: Run Prisma migrations and seed
+        env:
+          DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
+        run: |
+          npx --prefix server prisma migrate deploy
+          npx --prefix server prisma db seed
+
+      - name: Run server test suite (34 tests)
+        env:
+          DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
+        run: npm test --prefix server
+
+  test-client:
+    name: Client Component Tests & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Run client unit tests (22 tests)
+        run: npm test --prefix client
+
+      - name: Build client for production
+        run: npm run build --prefix client
+
+  test-e2e:
+    name: Playwright End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [test-server, test-client]
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: toktickit
+          POSTGRES_PASSWORD: toktickit_dev_password
+          POSTGRES_DB: toktickit_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
+      - name: Install client dependencies
+        run: npm ci --prefix client
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare database
+        env:
+          DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
+        run: |
+          npx --prefix server prisma migrate deploy
+          npx --prefix server prisma db seed
+
+      - name: Start server in background
+        env:
+          DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
+          PORT: 3001
+        run: npm run dev --prefix server &
+
+      - name: Start client in background
+        run: npm run dev --prefix client &
+
+      - name: Wait for services to be healthy
+        run: npx wait-on http://localhost:5173 http://localhost:3001/api/requesters
+
+      - name: Run Playwright E2E tests
+        run: npx playwright test
