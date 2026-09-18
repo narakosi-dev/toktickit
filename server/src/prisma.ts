@@ -9,3 +9,7 @@ export function getPrisma(): PrismaClient {
   if (!client) client = new PrismaClient();
   return client;
 }
+
+export function setPrisma(mock: any) {
+  client = mock;
+}
