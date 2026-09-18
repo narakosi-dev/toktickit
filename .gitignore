@@ -17,3 +17,5 @@ server/uploads/*
 # test artifacts
 test-results/
 playwright-report/
+scripts/github-helper.cjs
+scripts/create-lab3-issues.cjs
