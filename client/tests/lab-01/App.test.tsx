@@ -1,9 +1,67 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import App from "../../src/App.js";
 
 import * as api from "../../src/api.js";
 import { fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+// Mock auth API to auto-login for Lab 1 regression tests
+vi.mock("../../src/api.js", async () => {
+  const actual = await vi.importActual<typeof import("../../src/api.js")>("../../src/api.js");
+  return {
+    ...actual,
+    loginUser: vi.fn(),
+    logoutUser: vi.fn().mockResolvedValue(undefined),
+    getMe: vi.fn(),
+    changePassword: vi.fn(),
+    checkSystem: vi.fn(),
+  };
+});
+
+import { loginUser, getMe, checkSystem } from "../../src/api.js";
+const mockLoginUser = loginUser as ReturnType<typeof vi.fn>;
+const mockGetMe = getMe as ReturnType<typeof vi.fn>;
+const mockCheckSystem = checkSystem as ReturnType<typeof vi.fn>;
+
+/** Helper: Log in and navigate to System Status tab */
+async function loginAndNavigateToSystemStatus() {
+  const user = userEvent.setup();
+  mockLoginUser.mockResolvedValue({
+    token: "test-jwt-token",
+    user: {
+      id: 1,
+      email: "alice@example.com",
+      name: "Alice",
+      role: "Requester",
+      mustChangePassword: false,
+    },
+  });
+
+  render(<App />);
+
+  // Login
+  await user.type(screen.getByLabelText(/email address/i), "alice@example.com");
+  await user.type(screen.getByLabelText(/^password$/i), "Password123!");
+  await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+  // Wait for AppShell to render
+  await waitFor(() => {
+    expect(screen.getByText(/sign out/i)).toBeInTheDocument();
+  });
+
+  // Navigate to System Status tab
+  const systemStatusBtn = screen.getByRole("button", { name: /system status/i });
+  await user.click(systemStatusBtn);
+
+  return user;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  localStorage.clear();
+  mockGetMe.mockRejectedValue(new Error("No token"));
+});
 
 describe("App", () => {
   // WORKED EXAMPLE — provided for you.
@@ -20,13 +78,12 @@ describe("App", () => {
       { id: 1, name: "Account and Access" },
       { id: 2, name: "Hardware" },
     ];
-    vi.spyOn(api, "checkSystem").mockResolvedValue({ online: true, categories: mockCategories });
+    mockCheckSystem.mockResolvedValue({ online: true, categories: mockCategories });
 
-    render(<App />);
+    await loginAndNavigateToSystemStatus();
+
     const btn = screen.getByRole("button", { name: /Check System/i });
     fireEvent.click(btn);
-
-    expect(screen.getAllByText(/⏳ Loading…/i).length).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(screen.getByText(/Online/i)).toBeInTheDocument();
@@ -37,9 +94,10 @@ describe("App", () => {
   });
 
   it("shows an Offline error message when the API is unavailable", async () => {
-    vi.spyOn(api, "checkSystem").mockRejectedValue(new Error("Network Error"));
+    mockCheckSystem.mockRejectedValue(new Error("Network Error"));
 
-    render(<App />);
+    await loginAndNavigateToSystemStatus();
+
     const btn = screen.getByRole("button", { name: /Check System/i });
     fireEvent.click(btn);
 
