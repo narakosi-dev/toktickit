@@ -65,6 +65,7 @@ function handleAttachmentUpload(req: Request, res: Response, next: NextFunction)
 }
 
 import { authRouter } from "./routes/auth.routes.js";
+import { staffRouter } from "./routes/staff.routes.js";
 
 export const app = express();
 
@@ -75,6 +76,7 @@ app.use(express.json());
 // Lab 3: Authentication & User Lifecycle APIs
 // ---------------------------------------------------------------------------
 app.use("/api/auth", authRouter);
+app.use("/api/staff", staffRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1: Health check
