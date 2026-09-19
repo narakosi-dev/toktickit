@@ -1,6 +1,11 @@
 import { Router, Request, Response } from "express";
 import { getPrisma } from "../prisma.js";
 import { authenticateToken, requirePasswordChanged, requireRole } from "../auth.js";
+import {
+  handleCreateInternalNote,
+  handleGetInternalNotes,
+  handleNoteAppendOnly,
+} from "./comments.routes.js";
 
 export const staffRouter = Router();
 
@@ -338,6 +343,14 @@ staffRouter.get("/tickets/:id", async (req: Request, res: Response) => {
       owner: ticket.assignedTo,
       ownerId: ticket.assignedToId,
       resolvedByRequester: ticket.resolvedIndicated,
+      publicComments: (ticket.publicComments || []).map((c: any) => ({
+        ...c,
+        author: c.user,
+      })),
+      internalNotes: (ticket.internalNotes || []).map((n: any) => ({
+        ...n,
+        author: n.user,
+      })),
     });
   } catch (error) {
     console.error("Failed to fetch staff ticket detail:", error);
@@ -579,3 +592,16 @@ const handleStatus = async (req: Request, res: Response) => {
 
 staffRouter.patch("/tickets/:id/status", handleStatus);
 staffRouter.post("/tickets/:id/status", handleStatus);
+
+/**
+ * Confidential Internal Notes Endpoints
+ * Protected by staffRouter middleware (IT_Staff and Administrator only)
+ */
+staffRouter.post("/tickets/:id/internal-notes", handleCreateInternalNote);
+staffRouter.get("/tickets/:id/internal-notes", handleGetInternalNotes);
+staffRouter.all("/tickets/:id/internal-notes/:noteId", handleNoteAppendOnly);
+
+staffRouter.post("/tickets/:id/notes", handleCreateInternalNote);
+staffRouter.get("/tickets/:id/notes", handleGetInternalNotes);
+staffRouter.all("/tickets/:id/notes/:noteId", handleNoteAppendOnly);
+
