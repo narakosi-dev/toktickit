@@ -6,8 +6,15 @@ import MyTickets from "./MyTickets.js";
 import TicketDetail from "./TicketDetail.js";
 import StaffTicketQueue from "./StaffTicketQueue.js";
 import StaffTicketDetail from "./StaffTicketDetail.js";
+import UserManagement from "./UserManagement.js";
 
-type Tab = "my-tickets" | "create-ticket" | "system-status" | "ticket-detail" | "staff-queue";
+type Tab =
+  | "my-tickets"
+  | "create-ticket"
+  | "system-status"
+  | "ticket-detail"
+  | "staff-queue"
+  | "user-management";
 
 /** Role badge color mapping */
 function roleBadge(role: string) {
@@ -23,8 +30,12 @@ function roleBadge(role: string) {
 
 export default function AppShell() {
   const { user, logout } = useAuth();
-  const isStaffOrAdmin = user?.role === "IT_Staff" || user?.role === "Administrator";
-  const [activeTab, setActiveTab] = useState<Tab>(isStaffOrAdmin ? "staff-queue" : "my-tickets");
+  const isAdmin = user?.role === "Administrator";
+  const isStaff = user?.role === "IT_Staff";
+  const isStaffOrAdmin = isStaff || isAdmin;
+  const [activeTab, setActiveTab] = useState<Tab>(
+    isAdmin ? "user-management" : isStaff ? "staff-queue" : "my-tickets"
+  );
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Lab 1 state preservation for system check
@@ -63,6 +74,19 @@ export default function AppShell() {
           </div>
 
           <nav className="d-flex flex-wrap align-items-center gap-1">
+            {isAdmin && (
+              <button
+                type="button"
+                className={`zen-nav-btn ${activeTab === "user-management" ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedTicketId(null);
+                  setActiveTab("user-management");
+                }}
+                data-testid="nav-user-management"
+              >
+                👥 User Management
+              </button>
+            )}
             {isStaffOrAdmin && (
               <button
                 type="button"
@@ -155,7 +179,15 @@ export default function AppShell() {
       </header>
 
       {/* Main Content Area */}
-      <main className="container py-4 flex-grow-1" style={{ maxWidth: activeTab === "staff-queue" ? 1400 : 960 }}>
+      <main
+        className="container py-4 flex-grow-1"
+        style={{
+          maxWidth:
+            activeTab === "staff-queue" || activeTab === "user-management" ? 1400 : 960,
+        }}
+      >
+        {activeTab === "user-management" && isAdmin && <UserManagement />}
+
         {activeTab === "staff-queue" && (
           <StaffTicketQueue
             onSelectTicket={(ticketId) => {
