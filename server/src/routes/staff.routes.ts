@@ -45,10 +45,11 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
       }
     }
 
-    // 4. Status filter
+    // 4. Status filter (supports both underscored and space-separated format, e.g., "In Progress" -> "In_Progress")
     if (req.query.status && typeof req.query.status === "string" && req.query.status.trim()) {
       const s = req.query.status.trim();
-      where.status = { equals: s, mode: "insensitive" };
+      const normalizedStatus = s.replace(/\s+/g, "_");
+      where.status = { equals: normalizedStatus, mode: "insensitive" };
     }
 
     // 5. Priority filter (matches itPriority or fallback to priority)
@@ -155,6 +156,31 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
       resolvedByRequester: t.resolvedIndicated,
     }));
 
+    // Calculate queue-wide status counts
+    const stats = {
+      total,
+      newCount: 0,
+      inProgressCount: 0,
+      pendingCount: 0,
+      resolvedCount: 0,
+    };
+
+    try {
+      if (typeof prisma.ticket.groupBy === "function") {
+        const groups = await prisma.ticket.groupBy({
+          by: ["status"],
+          _count: { status: true },
+        });
+        for (const g of groups) {
+          const st = (g.status || "").toLowerCase();
+          if (st === "new") stats.newCount = g._count.status;
+          else if (st === "in_progress" || st === "in progress") stats.inProgressCount = g._count.status;
+          else if (st === "pending_requester" || st === "pending requester") stats.pendingCount = g._count.status;
+          else if (st === "resolved") stats.resolvedCount = g._count.status;
+        }
+      }
+    } catch {}
+
     res.status(200).json({
       tickets,
       items: tickets, // alias for backwards/test compatibility
@@ -165,6 +191,7 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
         totalPages,
       },
       total,
+      stats,
     });
   } catch (error) {
     console.error("Failed to fetch staff tickets queue:", error);

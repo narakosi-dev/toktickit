@@ -352,6 +352,13 @@ export interface StaffTicketListResponse {
     totalPages: number;
   };
   total?: number;
+  stats?: {
+    total: number;
+    newCount: number;
+    inProgressCount: number;
+    pendingCount: number;
+    resolvedCount: number;
+  };
 }
 
 export interface StaffTicketQueryFilters {

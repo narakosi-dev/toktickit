@@ -5,6 +5,7 @@ import {
   fetchCategories,
   Category,
   StaffTicketItem,
+  StaffTicketListResponse,
   PaginationMetadata,
 } from "../api.js";
 
@@ -12,7 +13,15 @@ interface Props {
   onSelectTicket?: (ticketId: number) => void;
 }
 
-const STATUSES = ["All", "New", "Open", "In Progress", "Pending Requester", "Resolved", "Closed"];
+const STATUSES = [
+  { label: "All Statuses", value: "All" },
+  { label: "New", value: "New" },
+  { label: "Open", value: "Open" },
+  { label: "In Progress", value: "In_Progress" },
+  { label: "Pending Requester", value: "Pending_Requester" },
+  { label: "Resolved", value: "Resolved" },
+  { label: "Closed", value: "Closed" },
+];
 const PRIORITIES = ["All", "Low", "Medium", "High", "Critical"];
 const ASSIGNEES = [
   { label: "All Tickets", value: "All" },
@@ -23,6 +32,7 @@ const ASSIGNEES = [
 /** Priority badge styling */
 function priorityBadge(priority: string) {
   switch (priority?.toLowerCase()) {
+    case "urgent":
     case "critical":
       return { bg: "#F8D7DA", color: "#842029", border: "#F5C2C7" };
     case "high":
@@ -73,6 +83,7 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
   const [error, setError] = useState("");
 
   // Filters state
+  const [serverStats, setServerStats] = useState<StaffTicketListResponse["stats"] | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("All");
@@ -132,6 +143,10 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
           totalCount: total,
           totalPages: Math.max(1, totalPages),
         });
+
+        if (res.stats) {
+          setServerStats(res.stats);
+        }
       } catch (err: any) {
         setError(err.message || "Failed to load IT Staff ticket queue");
       } finally {
@@ -145,8 +160,11 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
     loadStaffTickets(page);
   }, [loadStaffTickets, page]);
 
-  // Quick stats calculation
+  // Quick stats calculation (prefers queue-wide serverStats if provided by server API)
   const stats = useMemo(() => {
+    if (serverStats) {
+      return serverStats;
+    }
     const total = pagination.totalCount;
     const newCount = tickets.filter((t) => t.status.toLowerCase() === "new").length;
     const inProgressCount = tickets.filter(
@@ -160,7 +178,7 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
     const resolvedCount = tickets.filter((t) => t.status.toLowerCase() === "resolved").length;
 
     return { total, newCount, inProgressCount, pendingCount, resolvedCount };
-  }, [tickets, pagination.totalCount]);
+  }, [serverStats, tickets, pagination.totalCount]);
 
   // Clear filters
   const handleClearFilters = () => {
@@ -339,8 +357,8 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
               }}
             >
               {STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {st}
+                <option key={st.value} value={st.value}>
+                  {st.label}
                 </option>
               ))}
             </select>
@@ -536,7 +554,20 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
                     const assigneeName = t.assignedTo?.name || t.owner?.name || t.assignee?.name;
 
                     return (
-                      <tr key={t.id} style={{ cursor: "pointer" }} onClick={() => onSelectTicket?.(t.id)}>
+                      <tr
+                        key={t.id}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`Open ticket ${t.ticketNumber}`}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => onSelectTicket?.(t.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelectTicket?.(t.id);
+                          }
+                        }}
+                      >
                         {/* ID / Ticket Number */}
                         <td>
                           <span
