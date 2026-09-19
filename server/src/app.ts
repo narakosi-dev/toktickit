@@ -66,7 +66,8 @@ function handleAttachmentUpload(req: Request, res: Response, next: NextFunction)
 
 import { authRouter } from "./routes/auth.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
-import { authenticateToken, requirePasswordChanged } from "./auth.js";
+import { commentsRouter } from "./routes/comments.routes.js";
+import { authenticateToken, requirePasswordChanged, verifyToken } from "./auth.js";
 
 export const app = express();
 
@@ -74,10 +75,11 @@ app.use(cors());
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// Lab 3: Authentication & User Lifecycle APIs
+// Lab 3: Authentication, Staff, and Comments/Notes APIs
 // ---------------------------------------------------------------------------
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
+app.use("/api/tickets", commentsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1: Health check
@@ -382,7 +384,19 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const ticketId = parseInt(req.params.id, 10);
-    const requesterIdStr = req.query.requesterId as string;
+    let requesterIdStr = req.query.requesterId as string;
+
+    // Check if Bearer token is provided
+    let authUser: any = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      authUser = verifyToken(token);
+    }
+
+    if (!requesterIdStr && authUser) {
+      requesterIdStr = String(authUser.id);
+    }
 
     if (!requesterIdStr) {
       res.status(400).json({ error: "requesterId is required" });
@@ -417,12 +431,27 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
       },
     });
 
-    if (!ticket || ticket.requester.id !== requesterId) {
+    if (!ticket) {
       res.status(404).json({ error: "Ticket not found or unauthorized access" });
       return;
     }
 
-    res.json(ticket);
+    // Role check: If staff/admin with valid token, allow viewing. Otherwise must match requesterId
+    if (authUser && (authUser.role === "IT_Staff" || authUser.role === "Administrator")) {
+      // Allowed
+    } else if (ticket.requester.id !== requesterId) {
+      res.status(404).json({ error: "Ticket not found or unauthorized access" });
+      return;
+    }
+
+    // Zero data leakage of internal notes (BR-10 / TC-COMM-08)
+    const sanitizedTicket = { ...ticket };
+    delete (sanitizedTicket as any).internalNotes;
+    if ((sanitizedTicket as any)._count) {
+      delete (sanitizedTicket as any)._count.internalNotes;
+    }
+
+    res.json(sanitizedTicket);
   } catch (error) {
     console.error("Failed to fetch ticket detail:", error);
     res.status(500).json({ error: "Failed to fetch ticket detail" });
