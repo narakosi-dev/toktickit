@@ -6,6 +6,7 @@ import {
   requirePasswordChanged,
   requireRole,
   hashPassword,
+  validatePasswordStrength,
 } from "../auth.js";
 
 export const adminRouter = Router();
@@ -18,6 +19,7 @@ adminRouter.use(requireRole(["Administrator"]));
 /**
  * Generates a cryptographically strong temporary password that satisfies password complexity:
  * Minimum 8 characters, at least one uppercase, one lowercase, and one number or special symbol.
+ * Uses Fisher-Yates shuffle to ensure a statistically uniform distribution without bias.
  */
 export function generateTemporaryPassword(): string {
   const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -28,15 +30,22 @@ export function generateTemporaryPassword(): string {
 
   const getRandomChar = (chars: string) => chars[crypto.randomInt(0, chars.length)];
 
-  const guaranteed = [
+  const combined = [
     getRandomChar(uppers),
     getRandomChar(lowers),
     getRandomChar(digits),
     getRandomChar(specials),
+    ...Array.from({ length: 8 }, () => getRandomChar(all)),
   ];
 
-  const extra = Array.from({ length: 8 }, () => getRandomChar(all));
-  const combined = [...guaranteed, ...extra].sort(() => crypto.randomInt(-1, 2));
+  // Fisher-Yates unbiased shuffle
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    const temp = combined[i];
+    combined[i] = combined[j];
+    combined[j] = temp;
+  }
+
   return combined.join("");
 }
 
@@ -148,8 +157,12 @@ adminRouter.post("/users", async (req: Request, res: Response) => {
       req.body.initialPassword || req.body.password || req.body.temporaryPassword;
     let plainPassword = explicitPassword;
     if (explicitPassword) {
-      if (typeof explicitPassword !== "string" || explicitPassword.length < 8) {
+      if (typeof explicitPassword !== "string") {
         return res.status(400).json({ error: "Initial password must be at least 8 characters" });
+      }
+      const strength = validatePasswordStrength(explicitPassword);
+      if (!strength.valid) {
+        return res.status(400).json({ error: strength.reason });
       }
     } else {
       plainPassword = generateTemporaryPassword();
@@ -207,6 +220,7 @@ adminRouter.post("/users", async (req: Request, res: Response) => {
  * Enforces safety invariants:
  * 1. Admin cannot deactivate own account (400)
  * 2. Admin cannot deactivate or change role of the last active Administrator (400)
+ * Evaluated atomically inside a transaction to prevent race conditions on concurrent deactivations.
  */
 adminRouter.patch("/users/:id", async (req: Request, res: Response) => {
   try {
@@ -216,106 +230,120 @@ adminRouter.patch("/users/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Invalid user ID" });
     }
 
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
     const currentAdmin = req.user!;
     const { name, email, role, active, isActive } = req.body;
 
     const requestedActive =
       active !== undefined ? Boolean(active) : isActive !== undefined ? Boolean(isActive) : undefined;
 
-    // Safety Invariant 2: Cannot deactivate the last active Administrator (BR-14 / TC-ADMIN-08)
-    if (requestedActive === false && targetUser.role === "Administrator" && targetUser.isActive) {
-      const activeAdminCount = await prisma.user.count({
-        where: { role: "Administrator", isActive: true },
+    const runUpdate = async (client: any) => {
+      const targetUser = await client.user.findUnique({
+        where: { id: userId },
       });
-      if (activeAdminCount <= 1) {
-        return res.status(400).json({ error: "Cannot deactivate the only active Administrator" });
+
+      if (!targetUser) {
+        return { status: 404, body: { error: "User not found" } };
       }
-    }
 
-    // Safety Invariant 1: Admin cannot deactivate own account (BR-13 / TC-ADMIN-07)
-    if (requestedActive === false && targetUser.id === currentAdmin.id) {
-      return res.status(400).json({ error: "You cannot deactivate your own account" });
-    }
-
-    // Safety Invariant 2b: Cannot change role of last active Administrator away from Administrator
-    if (
-      role &&
-      role !== "Administrator" &&
-      targetUser.role === "Administrator" &&
-      targetUser.isActive
-    ) {
-      const activeAdminCount = await prisma.user.count({
-        where: { role: "Administrator", isActive: true },
-      });
-      if (activeAdminCount <= 1) {
-        return res.status(400).json({
-          error: "Cannot deactivate or change role of the last active Administrator",
+      // Safety Invariant 2: Cannot deactivate the last active Administrator (BR-14 / TC-ADMIN-08)
+      if (requestedActive === false && targetUser.role === "Administrator" && targetUser.isActive) {
+        const activeAdminCount = await client.user.count({
+          where: { role: "Administrator", isActive: true },
         });
+        if (activeAdminCount <= 1) {
+          return { status: 400, body: { error: "Cannot deactivate the only active Administrator" } };
+        }
       }
-    }
 
-    // Email uniqueness check if updated
-    if (email && email.toLowerCase().trim() !== targetUser.email.toLowerCase()) {
-      const normalizedEmail = email.toLowerCase().trim();
-      const duplicate = await prisma.user.findFirst({
-        where: {
-          email: { equals: normalizedEmail, mode: "insensitive" },
-          NOT: { id: userId },
+      // Safety Invariant 1: Admin cannot deactivate own account (BR-13 / TC-ADMIN-07)
+      if (requestedActive === false && targetUser.id === currentAdmin.id) {
+        return { status: 400, body: { error: "You cannot deactivate your own account" } };
+      }
+
+      // Safety Invariant 2b: Cannot change role of last active Administrator away from Administrator
+      if (
+        role &&
+        role !== "Administrator" &&
+        targetUser.role === "Administrator" &&
+        targetUser.isActive
+      ) {
+        const activeAdminCount = await client.user.count({
+          where: { role: "Administrator", isActive: true },
+        });
+        if (activeAdminCount <= 1) {
+          return {
+            status: 400,
+            body: {
+              error: "Cannot deactivate or change role of the last active Administrator",
+            },
+          };
+        }
+      }
+
+      // Email uniqueness check if updated
+      if (email && email.toLowerCase().trim() !== targetUser.email.toLowerCase()) {
+        const normalizedEmail = email.toLowerCase().trim();
+        const duplicate = await client.user.findFirst({
+          where: {
+            email: { equals: normalizedEmail, mode: "insensitive" },
+            NOT: { id: userId },
+          },
+        });
+        if (duplicate) {
+          return { status: 409, body: { error: "Email address already registered" } };
+        }
+      }
+
+      const updateData: any = {};
+      if (name && typeof name === "string" && name.trim()) {
+        updateData.name = name.trim();
+      }
+      if (email && typeof email === "string" && email.trim()) {
+        updateData.email = email.toLowerCase().trim();
+      }
+      if (role && ["Requester", "IT_Staff", "Administrator"].includes(role.trim())) {
+        updateData.role = role.trim();
+      }
+      if (requestedActive !== undefined) {
+        updateData.isActive = requestedActive;
+      }
+
+      const updated = await client.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          mustChangePassword: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
-      if (duplicate) {
-        return res.status(409).json({ error: "Email address already registered" });
-      }
-    }
 
-    const updateData: any = {};
-    if (name && typeof name === "string" && name.trim()) {
-      updateData.name = name.trim();
-    }
-    if (email && typeof email === "string" && email.trim()) {
-      updateData.email = email.toLowerCase().trim();
-    }
-    if (role && ["Requester", "IT_Staff", "Administrator"].includes(role.trim())) {
-      updateData.role = role.trim();
-    }
-    if (requestedActive !== undefined) {
-      updateData.isActive = requestedActive;
-    }
+      return {
+        status: 200,
+        body: {
+          id: updated.id,
+          name: updated.name,
+          email: updated.email,
+          role: updated.role,
+          isActive: updated.isActive,
+          active: updated.isActive,
+          mustChangePassword: updated.mustChangePassword,
+          createdAt: updated.createdAt,
+          updatedAt: updated.updatedAt,
+        },
+      };
+    };
 
-    const updated = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        mustChangePassword: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const result = typeof prisma.$transaction === "function"
+      ? await prisma.$transaction(async (tx) => runUpdate(tx))
+      : await runUpdate(prisma);
 
-    res.status(200).json({
-      id: updated.id,
-      name: updated.name,
-      email: updated.email,
-      role: updated.role,
-      isActive: updated.isActive,
-      active: updated.isActive,
-      mustChangePassword: updated.mustChangePassword,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-    });
+    res.status(result.status).json(result.body);
   } catch (error) {
     console.error("Failed to update user:", error);
     res.status(500).json({ error: "Failed to update user" });
@@ -350,8 +378,12 @@ adminRouter.post("/users/:id/reset-password", async (req: Request, res: Response
 
     let plainPassword = explicitPassword;
     if (explicitPassword) {
-      if (typeof explicitPassword !== "string" || explicitPassword.length < 8) {
+      if (typeof explicitPassword !== "string") {
         return res.status(400).json({ error: "New password must be at least 8 characters" });
+      }
+      const strength = validatePasswordStrength(explicitPassword);
+      if (!strength.valid) {
+        return res.status(400).json({ error: strength.reason });
       }
     } else {
       plainPassword = generateTemporaryPassword();
