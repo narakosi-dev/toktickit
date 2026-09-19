@@ -4,8 +4,9 @@ import { checkSystem, Category } from "../api.js";
 import CreateTicket from "./CreateTicket.js";
 import MyTickets from "./MyTickets.js";
 import TicketDetail from "./TicketDetail.js";
+import StaffTicketQueue from "./StaffTicketQueue.js";
 
-type Tab = "my-tickets" | "create-ticket" | "system-status" | "ticket-detail";
+type Tab = "my-tickets" | "create-ticket" | "system-status" | "ticket-detail" | "staff-queue";
 
 /** Role badge color mapping */
 function roleBadge(role: string) {
@@ -21,7 +22,8 @@ function roleBadge(role: string) {
 
 export default function AppShell() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("my-tickets");
+  const isStaffOrAdmin = user?.role === "IT_Staff" || user?.role === "Administrator";
+  const [activeTab, setActiveTab] = useState<Tab>(isStaffOrAdmin ? "staff-queue" : "my-tickets");
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   // Lab 1 state preservation for system check
@@ -60,10 +62,22 @@ export default function AppShell() {
           </div>
 
           <nav className="d-flex flex-wrap align-items-center gap-1">
+            {isStaffOrAdmin && (
+              <button
+                type="button"
+                className={`zen-nav-btn ${activeTab === "staff-queue" ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedTicketId(null);
+                  setActiveTab("staff-queue");
+                }}
+              >
+                🎫 Ticket Queue
+              </button>
+            )}
             {showMyTickets && (
               <button
                 type="button"
-                className={`zen-nav-btn ${activeTab === "my-tickets" || activeTab === "ticket-detail" ? "active" : ""}`}
+                className={`zen-nav-btn ${activeTab === "my-tickets" || (activeTab === "ticket-detail" && !isStaffOrAdmin) ? "active" : ""}`}
                 onClick={() => {
                   setSelectedTicketId(null);
                   setActiveTab("my-tickets");
@@ -140,7 +154,16 @@ export default function AppShell() {
       </header>
 
       {/* Main Content Area */}
-      <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
+      <main className="container py-4 flex-grow-1" style={{ maxWidth: activeTab === "staff-queue" ? 1400 : 960 }}>
+        {activeTab === "staff-queue" && (
+          <StaffTicketQueue
+            onSelectTicket={(ticketId) => {
+              setSelectedTicketId(ticketId);
+              setActiveTab("ticket-detail");
+            }}
+          />
+        )}
+
         {activeTab === "my-tickets" && (
           <MyTickets
             onNavigateToCreate={() => setActiveTab("create-ticket")}
