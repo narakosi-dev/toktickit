@@ -762,5 +762,30 @@ export async function resetUserPassword(
   return res.json();
 }
 
+/**
+ * Validates password complexity on the client:
+ * >= 8 characters, at least one uppercase, one lowercase, and one number or symbol.
+ */
+export function validatePasswordStrength(password: string): { valid: boolean; reason?: string } {
+  if (!password || password.length < 8) {
+    return { valid: false, reason: "Password must be at least 8 characters long" };
+  }
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumberOrSymbol = /[\d\W]/.test(password);
+
+  if (!hasUpper) {
+    return { valid: false, reason: "Password must contain at least one uppercase letter" };
+  }
+  if (!hasLower) {
+    return { valid: false, reason: "Password must contain at least one lowercase letter" };
+  }
+  if (!hasNumberOrSymbol) {
+    return { valid: false, reason: "Password must contain at least one number or special symbol" };
+  }
+  return { valid: true };
+}
+
+
 
 
