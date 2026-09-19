@@ -312,3 +312,97 @@ export async function changePassword(
   }
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Issue 5 & 6: IT Staff Queue Types & API
+// ---------------------------------------------------------------------------
+export interface StaffTicketItem {
+  id: number;
+  ticketNumber: string;
+  ticketDate: string;
+  summary: string;
+  description: string;
+  priority: string;
+  itPriority?: string | null;
+  status: string;
+  resolvedIndicated?: boolean;
+  resolvedByRequester?: boolean;
+  requester: { id: number; name: string; email: string; role?: string };
+  assignedTo?: { id: number; name: string; email: string; role?: string } | null;
+  owner?: { id: number; name: string; email: string; role?: string } | null;
+  assignee?: { id: number; name: string; email: string; role?: string } | null;
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string };
+  _count?: {
+    attachments: number;
+    publicComments: number;
+    internalNotes: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaffTicketListResponse {
+  tickets: StaffTicketItem[];
+  items?: StaffTicketItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  total?: number;
+}
+
+export interface StaffTicketQueryFilters {
+  search?: string;
+  q?: string;
+  status?: string;
+  priority?: string;
+  itPriority?: string;
+  assigneeId?: string | number;
+  ownerId?: string | number;
+  categoryId?: string | number;
+  relatedSystemId?: string | number;
+  sortBy?: string;
+  sortOrder?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function fetchStaffTickets(
+  token: string,
+  filters: StaffTicketQueryFilters = {}
+): Promise<StaffTicketListResponse> {
+  const params = new URLSearchParams();
+  const searchVal = filters.q || filters.search;
+  if (searchVal && searchVal.trim()) params.set("q", searchVal.trim());
+  if (filters.status && filters.status !== "All") params.set("status", filters.status);
+  if (filters.priority && filters.priority !== "All") params.set("priority", filters.priority);
+  if (filters.itPriority && filters.itPriority !== "All") params.set("itPriority", filters.itPriority);
+  if (filters.assigneeId !== undefined && filters.assigneeId !== "All") params.set("assigneeId", String(filters.assigneeId));
+  if (filters.ownerId !== undefined && filters.ownerId !== "All") params.set("ownerId", String(filters.ownerId));
+  if (filters.categoryId && filters.categoryId !== "All") params.set("categoryId", String(filters.categoryId));
+  if (filters.relatedSystemId && filters.relatedSystemId !== "All") params.set("relatedSystemId", String(filters.relatedSystemId));
+  if (filters.sortBy) params.set("sortBy", filters.sortBy);
+  if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.limit) params.set("limit", String(filters.limit));
+
+  const queryStr = params.toString();
+  const url = `${API_URL}/api/staff/tickets${queryStr ? `?${queryStr}` : ""}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch staff tickets queue");
+  }
+  return res.json();
+}
+
