@@ -48,6 +48,23 @@ export default function UserManagement() {
   const [resetResult, setResetResult] = useState<ResetPasswordResponse | null>(null);
   const [copyNotification, setCopyNotification] = useState<string | null>(null);
 
+  // System-wide active administrator count (independent of search/filter query)
+  const [systemActiveAdminCount, setSystemActiveAdminCount] = useState<number | null>(null);
+
+  // Helper to refresh system administrator count
+  const refreshSystemAdminCount = async () => {
+    if (!token) return;
+    try {
+      const admins = await fetchAdminUsers(token, { role: "Administrator" });
+      const count = admins.filter(
+        (u) => (u.isActive !== undefined ? u.isActive : u.active)
+      ).length;
+      setSystemActiveAdminCount(count);
+    } catch {
+      // Fallback
+    }
+  };
+
   // Load users from backend
   const loadUsers = async (search = searchQuery, role = roleFilter) => {
     if (!token) return;
@@ -59,6 +76,16 @@ export default function UserManagement() {
         role: role !== "All" ? role : undefined,
       });
       setUsers(data);
+
+      const isFiltered = Boolean(search.trim() || (role && role !== "All"));
+      if (!isFiltered) {
+        const count = data.filter(
+          (u) => u.role === "Administrator" && (u.isActive !== undefined ? u.isActive : u.active)
+        ).length;
+        setSystemActiveAdminCount(count);
+      } else if (systemActiveAdminCount === null) {
+        refreshSystemAdminCount();
+      }
     } catch (err: any) {
       console.error("Failed to load users:", err);
       setError(err.message || "Failed to load users");
@@ -78,11 +105,15 @@ export default function UserManagement() {
   };
 
   // Count active administrators in system for Safety Invariant 2
+  // Uses systemActiveAdminCount if available so search results don't falsely trigger single-admin lock
   const activeAdminCount = useMemo(() => {
+    if (systemActiveAdminCount !== null) {
+      return systemActiveAdminCount;
+    }
     return users.filter(
       (u) => u.role === "Administrator" && (u.isActive !== undefined ? u.isActive : u.active)
     ).length;
-  }, [users]);
+  }, [users, systemActiveAdminCount]);
 
   // Copy helper
   const handleCopyToClipboard = (text: string, label = "Password") => {
@@ -442,6 +473,7 @@ export default function UserManagement() {
           onSuccess={(res) => {
             setCreatedResult(res);
             loadUsers(searchQuery, roleFilter);
+            refreshSystemAdminCount();
           }}
           createdResult={createdResult}
           onCopy={handleCopyToClipboard}
@@ -459,6 +491,7 @@ export default function UserManagement() {
           onSuccess={() => {
             setEditingUser(null);
             loadUsers(searchQuery, roleFilter);
+            refreshSystemAdminCount();
           }}
         />
       )}

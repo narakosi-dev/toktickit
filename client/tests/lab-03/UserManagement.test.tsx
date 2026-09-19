@@ -369,4 +369,40 @@ describe("Administrator User Management UI (UserManagement.test.tsx)", () => {
     await user.click(copyBtn);
     expect(screen.getByText(/temporary password copied to clipboard/i)).toBeInTheDocument();
   });
+
+  it("maintains system-wide active admin count and allows editing an admin during keyword search when other admins exist", async () => {
+    const user = userEvent.setup();
+    // Initially loaded with 2 active admins (sampleUsers has Admin Super & Admin Second)
+    mockFetchAdminUsers.mockResolvedValueOnce([...sampleUsers]);
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-user-btn-2")).toBeInTheDocument();
+    });
+
+    // Now search for "Second", backend returns only Admin Second
+    mockFetchAdminUsers.mockResolvedValueOnce([sampleUsers[1]]);
+
+    const searchInput = screen.getByTestId("search-input");
+    await user.type(searchInput, "Second");
+    await user.click(screen.getByTestId("search-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-user-btn-2")).toBeInTheDocument();
+    });
+
+    // Open Edit modal for Admin Second (id: 2)
+    await user.click(screen.getByTestId("edit-user-btn-2"));
+
+    const form = screen.getByTestId("edit-user-form");
+    const roleSelect = within(form).getByLabelText(/role/i);
+    const activeToggle = screen.getByTestId("edit-user-active");
+
+    // Because system-wide there were 2 active admins, role and active toggle should NOT be disabled
+    expect(roleSelect).not.toBeDisabled();
+    expect(activeToggle).not.toBeDisabled();
+    expect(screen.queryByText(/cannot deactivate.*last active administrator/i)).not.toBeInTheDocument();
+  });
 });
+
