@@ -5,6 +5,7 @@ import CreateTicket from "./CreateTicket.js";
 import MyTickets from "./MyTickets.js";
 import TicketDetail from "./TicketDetail.js";
 import StaffTicketQueue from "./StaffTicketQueue.js";
+import StaffTicketDetail from "./StaffTicketDetail.js";
 
 type Tab = "my-tickets" | "create-ticket" | "system-status" | "ticket-detail" | "staff-queue";
 
@@ -175,13 +176,23 @@ export default function AppShell() {
         )}
 
         {activeTab === "ticket-detail" && selectedTicketId && (
-          <TicketDetail
-            ticketId={selectedTicketId}
-            onBack={() => {
-              setSelectedTicketId(null);
-              setActiveTab("my-tickets");
-            }}
-          />
+          isStaffOrAdmin ? (
+            <StaffTicketDetail
+              ticketId={selectedTicketId}
+              onBack={() => {
+                setSelectedTicketId(null);
+                setActiveTab("staff-queue");
+              }}
+            />
+          ) : (
+            <TicketDetail
+              ticketId={selectedTicketId}
+              onBack={() => {
+                setSelectedTicketId(null);
+                setActiveTab("my-tickets");
+              }}
+            />
+          )
         )}
 
         {activeTab === "create-ticket" && (
