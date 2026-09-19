@@ -243,3 +243,72 @@ export async function removeAttachment(
   return res.json();
 }
 
+// ---------------------------------------------------------------------------
+// Lab 3 — Issue 4: Authentication API Functions
+// ---------------------------------------------------------------------------
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+  mustChangePassword: boolean;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: AuthUser;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+  token: string;
+  user: AuthUser;
+}
+
+export async function loginUser(email: string, password: string): Promise<LoginResponse> {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Login failed");
+  }
+  return res.json();
+}
+
+export async function logoutUser(): Promise<void> {
+  await fetch(`${API_URL}/api/auth/logout`, { method: "POST" });
+}
+
+export async function getMe(token: string): Promise<{ user: AuthUser }> {
+  const res = await fetch(`${API_URL}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch profile");
+  }
+  return res.json();
+}
+
+export async function changePassword(
+  token: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<ChangePasswordResponse> {
+  const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to change password");
+  }
+  return res.json();
+}
