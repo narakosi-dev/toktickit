@@ -66,6 +66,7 @@ function handleAttachmentUpload(req: Request, res: Response, next: NextFunction)
 
 import { authRouter } from "./routes/auth.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
+import { verifyToken } from "./auth.js";
 
 export const app = express();
 
@@ -427,6 +428,78 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch ticket detail" });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Lab 3: Requester Problem Resolution Indication (POST & PATCH /api/tickets/:id/resolve-indication)
+// ---------------------------------------------------------------------------
+const handleResolveIndication = async (req: Request, res: Response) => {
+  try {
+    const prisma = getPrisma();
+    const ticketId = parseInt(req.params.id, 10);
+    if (isNaN(ticketId) || ticketId <= 0) {
+      return res.status(404).json({ error: "Invalid ticket ID" });
+    }
+
+    const authHeader = req.headers["authorization"];
+    let currentUser = req.user;
+    if (!currentUser && authHeader && authHeader.startsWith("Bearer ")) {
+      const decoded = verifyToken(authHeader.slice(7));
+      if (decoded) {
+        currentUser = decoded as any;
+      }
+    }
+
+    const ticket = await prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        requester: { select: { id: true, name: true, email: true, role: true } },
+      },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    if (currentUser && currentUser.role === "Requester" && ticket.requesterId !== currentUser.id) {
+      return res.status(403).json({ error: "You can only indicate resolution on your own tickets" });
+    }
+
+    if (ticket.status === "Closed" || ticket.status === "Cancelled") {
+      return res.status(400).json({ error: "Cannot indicate resolution on a closed or cancelled ticket" });
+    }
+
+    const updated = await prisma.ticket.update({
+      where: { id: ticketId },
+      data: { resolvedIndicated: true },
+    });
+
+    const actorId = currentUser?.id ?? ticket.requesterId;
+    try {
+      await prisma.activityLog.create({
+        data: {
+          ticketId,
+          userId: actorId,
+          action: "RESOLVE_INDICATED",
+          details: "Requester indicated problem appears resolved",
+        },
+      });
+    } catch {}
+
+    res.status(200).json({
+      id: updated.id,
+      resolvedIndicated: true,
+      resolvedByRequester: true,
+      message: "Problem indicated as resolved",
+      ticket: updated,
+    });
+  } catch (error) {
+    console.error("Failed to indicate resolution:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+app.post("/api/tickets/:id/resolve-indication", handleResolveIndication);
+app.patch("/api/tickets/:id/resolve-indication", handleResolveIndication);
 
 // ---------------------------------------------------------------------------
 // Lab 2 — Issue 5: Upload Attachment (POST /api/tickets/:id/attachments)
