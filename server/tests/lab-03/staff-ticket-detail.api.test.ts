@@ -229,12 +229,22 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       },
     ];
 
+    const anotherRequesterUser = {
+      id: 6,
+      name: "Other Requester",
+      email: "other.requester@example.com",
+      role: "Requester",
+      isActive: true,
+      mustChangePassword: false,
+    };
+
     const usersMap: Record<number, any> = {
       1: requesterUser,
       2: staffUser,
       3: adminUser,
       4: inactiveStaffUser,
       5: anotherStaffUser,
+      6: anotherRequesterUser,
     };
 
     setPrisma({
@@ -569,6 +579,60 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Cannot indicate resolution on a closed or cancelled ticket");
+    });
+
+    it("returns 401 Unauthorized when no authentication token is provided", async () => {
+      const res = await request(app).post("/api/tickets/103/resolve-indication");
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain("Authentication token required");
+    });
+
+    it("returns 403 Forbidden when another Requester attempts to indicate resolution", async () => {
+      const anotherRequester = {
+        id: 6,
+        name: "Other Requester",
+        email: "other.requester@example.com",
+        role: "Requester",
+        isActive: true,
+        mustChangePassword: false,
+      };
+      const anotherToken = signToken(anotherRequester);
+
+      const res = await request(app)
+        .post("/api/tickets/103/resolve-indication")
+        .set("Authorization", `Bearer ${anotherToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toContain("You can only indicate resolution on your own tickets");
+    });
+  });
+
+  describe("Staff Route Access Guards (Requester Forbidden)", () => {
+    it("Requester calling PATCH /api/staff/tickets/:id/status receives 403 Forbidden", async () => {
+      const res = await request(app)
+        .patch("/api/staff/tickets/101/status")
+        .set("Authorization", `Bearer ${requesterToken}`)
+        .send({ status: "Open" });
+
+      expect(res.status).toBe(403);
+    });
+
+    it("Requester calling POST /api/staff/tickets/:id/assign receives 403 Forbidden", async () => {
+      const res = await request(app)
+        .post("/api/staff/tickets/101/assign")
+        .set("Authorization", `Bearer ${requesterToken}`)
+        .send({ staffId: 2 });
+
+      expect(res.status).toBe(403);
+    });
+
+    it("Requester calling PATCH /api/staff/tickets/:id/priority receives 403 Forbidden", async () => {
+      const res = await request(app)
+        .patch("/api/staff/tickets/101/priority")
+        .set("Authorization", `Bearer ${requesterToken}`)
+        .send({ itPriority: "High" });
+
+      expect(res.status).toBe(403);
     });
   });
 });

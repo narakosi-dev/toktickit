@@ -386,7 +386,9 @@ const handleAssign = async (req: Request, res: Response) => {
             details: "Ticket unassigned",
           },
         });
-      } catch {}
+      } catch (err) {
+        console.error("Failed to log unassign activity:", err);
+      }
 
       return res.status(200).json({
         id: updated.id,
@@ -433,7 +435,9 @@ const handleAssign = async (req: Request, res: Response) => {
           details: `Assigned to ${targetUser.name} (${targetUser.role})`,
         },
       });
-    } catch {}
+    } catch (err) {
+      console.error("Failed to log assign activity:", err);
+    }
 
     return res.status(200).json({
       id: updated.id,
@@ -493,7 +497,9 @@ const handlePriority = async (req: Request, res: Response) => {
           details: `IT Priority updated to ${normalized}`,
         },
       });
-    } catch {}
+    } catch (err) {
+      console.error("Failed to log priority update activity:", err);
+    }
 
     res.status(200).json({
       id: updated.id,
@@ -556,7 +562,9 @@ const handleStatus = async (req: Request, res: Response) => {
           details: `Status transitioned from ${ticket.status} to ${targetNormalized}`,
         },
       });
-    } catch {}
+    } catch (err) {
+      console.error("Failed to log status transition activity:", err);
+    }
 
     res.status(200).json({
       id: updated.id,

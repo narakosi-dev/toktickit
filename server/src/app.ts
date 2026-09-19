@@ -66,7 +66,7 @@ function handleAttachmentUpload(req: Request, res: Response, next: NextFunction)
 
 import { authRouter } from "./routes/auth.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
-import { verifyToken } from "./auth.js";
+import { authenticateToken, requirePasswordChanged } from "./auth.js";
 
 export const app = express();
 
@@ -440,14 +440,8 @@ const handleResolveIndication = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Invalid ticket ID" });
     }
 
-    const authHeader = req.headers["authorization"];
-    let currentUser = req.user;
-    if (!currentUser && authHeader && authHeader.startsWith("Bearer ")) {
-      const decoded = verifyToken(authHeader.slice(7));
-      if (decoded) {
-        currentUser = decoded as any;
-      }
-    }
+    // req.user is guaranteed by authenticateToken middleware
+    const currentUser = req.user!;
 
     const ticket = await prisma.ticket.findUnique({
       where: { id: ticketId },
@@ -460,7 +454,7 @@ const handleResolveIndication = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Ticket not found" });
     }
 
-    if (currentUser && currentUser.role === "Requester" && ticket.requesterId !== currentUser.id) {
+    if (currentUser.role === "Requester" && ticket.requesterId !== currentUser.id) {
       return res.status(403).json({ error: "You can only indicate resolution on your own tickets" });
     }
 
@@ -473,17 +467,18 @@ const handleResolveIndication = async (req: Request, res: Response) => {
       data: { resolvedIndicated: true },
     });
 
-    const actorId = currentUser?.id ?? ticket.requesterId;
     try {
       await prisma.activityLog.create({
         data: {
           ticketId,
-          userId: actorId,
+          userId: currentUser.id,
           action: "RESOLVE_INDICATED",
           details: "Requester indicated problem appears resolved",
         },
       });
-    } catch {}
+    } catch (logErr) {
+      console.error("Failed to create activity log for resolution indication:", logErr);
+    }
 
     res.status(200).json({
       id: updated.id,
@@ -498,8 +493,18 @@ const handleResolveIndication = async (req: Request, res: Response) => {
   }
 };
 
-app.post("/api/tickets/:id/resolve-indication", handleResolveIndication);
-app.patch("/api/tickets/:id/resolve-indication", handleResolveIndication);
+app.post(
+  "/api/tickets/:id/resolve-indication",
+  authenticateToken,
+  requirePasswordChanged,
+  handleResolveIndication
+);
+app.patch(
+  "/api/tickets/:id/resolve-indication",
+  authenticateToken,
+  requirePasswordChanged,
+  handleResolveIndication
+);
 
 // ---------------------------------------------------------------------------
 // Lab 2 — Issue 5: Upload Attachment (POST /api/tickets/:id/attachments)
