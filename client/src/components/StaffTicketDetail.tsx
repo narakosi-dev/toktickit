@@ -580,15 +580,19 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
                           {formatBytes(a.sizeBytes)} &bull; {formatDateTime(a.createdAt)}
                         </div>
                       </div>
-                      <a
-                        href={getAttachmentDownloadUrl(a.id, ticket.requester?.id || 1)}
-                        className="btn btn-zen-outline btn-sm py-0 px-2"
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Download Attachment"
-                      >
-                        Download
-                      </a>
+                      {ticket.requester?.id ? (
+                        <a
+                          href={getAttachmentDownloadUrl(a.id, ticket.requester.id)}
+                          className="btn btn-zen-outline btn-sm py-0 px-2"
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Download Attachment"
+                        >
+                          Download
+                        </a>
+                      ) : (
+                        <span className="text-muted small fst-italic">Unavailable</span>
+                      )}
                     </li>
                   ))}
               </ul>
