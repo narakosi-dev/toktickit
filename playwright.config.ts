@@ -5,7 +5,6 @@ const API_URL = process.env.API_URL || "http://localhost:3000";
 
 export default defineConfig({
   testDir: "./e2e",
-  testIgnore: ["lab-02/**"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

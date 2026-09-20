@@ -21,88 +21,47 @@ model Category {
 }
 
 // ---------------------------------------------------------------------------
-// Lab 2: Systems & Legacy Requester
+// Lab 2: Development Requester & Foundation
 // ---------------------------------------------------------------------------
-model RelatedSystem {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+model Requester {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
   tickets   Ticket[]
 }
 
-model Requester {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+model RelatedSystem {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  tickets   Ticket[]
 }
 
-// ---------------------------------------------------------------------------
-// Lab 3: Users, Roles, and Authentication
-// ---------------------------------------------------------------------------
-enum Role {
-  Requester
-  IT_Staff
-  Administrator
-}
-
-model User {
-  id                 Int             @id @default(autoincrement())
-  email              String          @unique
-  passwordHash       String
-  name               String
-  role               Role            @default(Requester)
-  isActive           Boolean         @default(true)
-  mustChangePassword Boolean         @default(true)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-
-  createdTickets     Ticket[]        @relation("RequesterTickets")
-  assignedTickets    Ticket[]        @relation("StaffAssignedTickets")
-  publicComments     PublicComment[]
-  internalNotes      InternalNote[]
-  activityLogs       ActivityLog[]
-
-  @@index([role])
-  @@index([isActive])
-}
-
-// ---------------------------------------------------------------------------
-// Tickets, Attachments, Comments, Notes, and Logs
-// ---------------------------------------------------------------------------
 model Ticket {
-  id                Int             @id @default(autoincrement())
-  ticketNumber      String          @unique
-  ticketDate        DateTime        @default(now())
-  summary           String
-  description       String
-  priority          String          // Requester Impact Priority: Low | Medium | High | Critical
-  itPriority        String?         // IT Staff Override Priority: Low | Medium | High | Critical
-  status            String          @default("New") // New | Assigned | In_Progress | Pending_Requester | Resolved | Closed
-  resolvedIndicated Boolean         @default(false)
-  requesterId       Int
-  categoryId        Int
-  relatedSystemId   Int
-  assignedToId      Int?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  id              Int           @id @default(autoincrement())
+  ticketNumber    String        @unique
+  ticketDate      DateTime      @default(now())
+  summary         String
+  description     String
+  priority        String        // Low | Medium | High | Critical
+  status          String        @default("New")
+  requesterId     Int
+  categoryId      Int
+  relatedSystemId Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  requester         User            @relation("RequesterTickets", fields: [requesterId], references: [id])
-  assignedTo        User?           @relation("StaffAssignedTickets", fields: [assignedToId], references: [id])
-  category          Category        @relation(fields: [categoryId], references: [id])
-  relatedSystem     RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
-  attachments       Attachment[]
-  publicComments    PublicComment[]
-  internalNotes     InternalNote[]
-  activityLogs      ActivityLog[]
+  requester     Requester     @relation(fields: [requesterId], references: [id])
+  category      Category      @relation(fields: [categoryId], references: [id])
+  relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  attachments   Attachment[]
 
   @@index([requesterId])
-  @@index([assignedToId])
   @@index([status])
   @@index([categoryId])
-  @@index([createdAt])
 }
 
 model Attachment {
@@ -121,47 +80,4 @@ model Attachment {
 
   @@index([ticketId])
   @@index([active])
-}
-
-model PublicComment {
-  id        Int      @id @default(autoincrement())
-  ticketId  Int
-  userId    Int
-  content   String
-  createdAt DateTime @default(now())
-
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id])
-
-  @@index([ticketId])
-  @@index([userId])
-}
-
-model InternalNote {
-  id        Int      @id @default(autoincrement())
-  ticketId  Int
-  userId    Int
-  content   String
-  createdAt DateTime @default(now())
-
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id])
-
-  @@index([ticketId])
-  @@index([userId])
-}
-
-model ActivityLog {
-  id        Int      @id @default(autoincrement())
-  ticketId  Int
-  userId    Int
-  action    String
-  details   String?
-  createdAt DateTime @default(now())
-
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id])
-
-  @@index([ticketId])
-  @@index([userId])
 }

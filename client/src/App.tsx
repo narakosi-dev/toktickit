@@ -1,60 +1,98 @@
 import React, { useState } from "react";
-import { AuthProvider, useAuth } from "./context/AuthContext.js";
-import { RequesterProvider, useSyncRequesterFromAuth } from "./context/RequesterContext.js";
-import Login from "./components/Login.js";
-import ChangePassword from "./components/ChangePassword.js";
+import { RequesterProvider, useRequester } from "./context/RequesterContext.js";
+import RequesterSelect from "./components/RequesterSelect.js";
 import AppShell from "./components/AppShell.js";
 import { checkSystem, Category } from "./api.js";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
-/**
- * AuthenticatedApp handles routing between:
- * 1. Login screen (no token)
- * 2. Mandatory password change (mustChangePassword === true)
- * 3. Main AppShell (authenticated, password changed)
- */
-function AuthenticatedApp() {
-  const { user, token, isLoading } = useAuth();
+function MainContent() {
+  const { requester } = useRequester();
 
-  // Auto-sync RequesterContext with authenticated user for Lab 2 backward compatibility
-  useSyncRequesterFromAuth(user);
+  // Lab 1 Health Check State for backwards compatibility and regression testing
+  const [checkState, setCheckState] = useState<UiState>("idle");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Show loading spinner while validating stored token
-  if (isLoading) {
+  async function handleCheck() {
+    setCheckState("loading");
+    setErrorMessage("");
+    try {
+      const res = await checkSystem();
+      setCategories(res.categories);
+      setCheckState("success");
+    } catch {
+      setErrorMessage("Unable to connect to TokTickIT API");
+      setCheckState("error");
+    }
+  }
+
+  if (!requester) {
     return (
-      <div
-        className="min-vh-100 d-flex align-items-center justify-content-center"
-        style={{ backgroundColor: "var(--zen-bg)" }}
-      >
-        <div className="text-center">
-          <div className="mb-3" style={{ fontSize: "2rem" }}>⏱️</div>
-          <p className="text-muted">Loading TokTickIT…</p>
+      <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: "var(--zen-bg)" }}>
+        {/* Requester Selection Screen */}
+        <RequesterSelect />
+
+        {/* Lab 1 System Health Check (Maintains zero regression on Lab 1 tests) */}
+        <div className="container pb-5" style={{ maxWidth: 560 }}>
+          <div className="zen-card p-4">
+            <h1 className="h4 fw-bold mb-3" style={{ color: "var(--zen-text-primary)" }}>
+              TokTickIT <span style={{ color: "var(--zen-primary)" }}>IT Service Desk</span>
+            </h1>
+            <p className="small text-muted mb-3">
+              Lab 1 API Health Check & Categories Verification:
+            </p>
+            <button
+              type="button"
+              className="btn btn-zen-primary"
+              onClick={handleCheck}
+              disabled={checkState === "loading"}
+            >
+              {checkState === "loading" ? "⏳ Loading…" : "Check System"}
+            </button>
+
+            {checkState === "loading" && (
+              <p className="mt-3 text-muted small">⏳ Loading…</p>
+            )}
+
+            {checkState === "success" && (
+              <div className="mt-3">
+                <p className="mb-2">
+                  <strong>Status:</strong> <span className="text-success fw-bold">Online</span>
+                </p>
+                {categories.length > 0 && (
+                  <>
+                    <p className="mb-1 fw-semibold small">Supported Request Categories:</p>
+                    <ol className="list-group list-group-numbered">
+                      {categories.map((cat) => (
+                        <li key={cat.id} className="list-group-item py-1 small">
+                          {cat.name}
+                        </li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+              </div>
+            )}
+
+            {checkState === "error" && (
+              <div className="alert alert-danger mt-3 py-2 small" role="alert">
+                <strong>Status:</strong> Offline — {errorMessage}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 
-  // Not logged in — show Login
-  if (!token || !user) {
-    return <Login />;
-  }
-
-  // Logged in but must change password first
-  if (user.mustChangePassword) {
-    return <ChangePassword />;
-  }
-
-  // Fully authenticated — show the main application
   return <AppShell />;
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <RequesterProvider>
-        <AuthenticatedApp />
-      </RequesterProvider>
-    </AuthProvider>
+    <RequesterProvider>
+      <MainContent />
+    </RequesterProvider>
   );
 }

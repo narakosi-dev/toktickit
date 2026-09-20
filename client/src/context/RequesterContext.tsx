@@ -45,17 +45,3 @@ export function useRequester() {
   }
   return context;
 }
-
-/**
- * Hook to auto-sync the RequesterContext with the AuthContext user.
- * Call this once in the app root after both providers are mounted.
- */
-export function useSyncRequesterFromAuth(user: { id: number; name: string; email: string } | null) {
-  const { setRequester, clearRequester } = useRequester();
-
-  useEffect(() => {
-    if (user) {
-      setRequester({ id: user.id, name: user.name, email: user.email, active: true });
-    }
-  }, [user?.id]); // Only re-sync when user changes
-}

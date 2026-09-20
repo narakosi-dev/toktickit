@@ -64,24 +64,10 @@ function handleAttachmentUpload(req: Request, res: Response, next: NextFunction)
   });
 }
 
-import { authRouter } from "./routes/auth.routes.js";
-import { staffRouter } from "./routes/staff.routes.js";
-import { commentsRouter } from "./routes/comments.routes.js";
-import { adminRouter } from "./routes/admin.routes.js";
-import { authenticateToken, requirePasswordChanged, verifyToken } from "./auth.js";
-
 export const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-// ---------------------------------------------------------------------------
-// Lab 3: Authentication, Staff, Comments/Notes, and Admin APIs
-// ---------------------------------------------------------------------------
-app.use("/api/auth", authRouter);
-app.use("/api/staff", staffRouter);
-app.use("/api/tickets", commentsRouter);
-app.use("/api/admin", adminRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1: Health check
@@ -190,20 +176,13 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
     }
 
     // --- Foreign key existence check ---
-    const [userRequester, legacyRequester, category, relatedSystem] = await Promise.all([
-      prisma.user.findFirst({ where: { id: requesterId, isActive: true } }),
+    const [requester, category, relatedSystem] = await Promise.all([
       prisma.requester.findFirst({ where: { id: requesterId, active: true } }),
       prisma.category.findUnique({ where: { id: categoryId } }),
       prisma.relatedSystem.findFirst({ where: { id: relatedSystemId, active: true } }),
     ]);
 
-    let targetUserId = userRequester?.id;
-    if (!targetUserId && legacyRequester) {
-      const matchedUser = await prisma.user.findUnique({ where: { email: legacyRequester.email } });
-      targetUserId = matchedUser?.id;
-    }
-
-    if ((!userRequester && !legacyRequester) || !category || !relatedSystem || !targetUserId) {
+    if (!requester || !category || !relatedSystem) {
       res.status(404).json({ error: "Invalid requester, category, or related system" });
       return;
     }
@@ -240,7 +219,7 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
             description: trimmedDescription,
             priority,
             status: "New",
-            requesterId: targetUserId,
+            requesterId,
             categoryId,
             relatedSystemId,
           },
@@ -393,19 +372,7 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const ticketId = parseInt(req.params.id, 10);
-    let requesterIdStr = req.query.requesterId as string;
-
-    // Check if Bearer token is provided
-    let authUser: any = null;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      authUser = verifyToken(token);
-    }
-
-    if (!requesterIdStr && authUser) {
-      requesterIdStr = String(authUser.id);
-    }
+    const requesterIdStr = req.query.requesterId as string;
 
     if (!requesterIdStr) {
       res.status(400).json({ error: "requesterId is required" });
@@ -440,109 +407,17 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
       },
     });
 
-    if (!ticket) {
+    if (!ticket || ticket.requester.id !== requesterId) {
       res.status(404).json({ error: "Ticket not found or unauthorized access" });
       return;
     }
 
-    // Role check: If staff/admin with valid token, allow viewing. Otherwise must match requesterId
-    if (authUser && (authUser.role === "IT_Staff" || authUser.role === "Administrator")) {
-      // Allowed
-    } else if (ticket.requester.id !== requesterId) {
-      res.status(404).json({ error: "Ticket not found or unauthorized access" });
-      return;
-    }
-
-    // Zero data leakage of internal notes (BR-10 / TC-COMM-08)
-    const sanitizedTicket = { ...ticket };
-    delete (sanitizedTicket as any).internalNotes;
-    if ((sanitizedTicket as any)._count) {
-      delete (sanitizedTicket as any)._count.internalNotes;
-    }
-
-    res.json(sanitizedTicket);
+    res.json(ticket);
   } catch (error) {
     console.error("Failed to fetch ticket detail:", error);
     res.status(500).json({ error: "Failed to fetch ticket detail" });
   }
 });
-
-// ---------------------------------------------------------------------------
-// Lab 3: Requester Problem Resolution Indication (POST & PATCH /api/tickets/:id/resolve-indication)
-// ---------------------------------------------------------------------------
-const handleResolveIndication = async (req: Request, res: Response) => {
-  try {
-    const prisma = getPrisma();
-    const ticketId = parseInt(req.params.id, 10);
-    if (isNaN(ticketId) || ticketId <= 0) {
-      return res.status(404).json({ error: "Invalid ticket ID" });
-    }
-
-    // req.user is guaranteed by authenticateToken middleware
-    const currentUser = req.user!;
-
-    const ticket = await prisma.ticket.findUnique({
-      where: { id: ticketId },
-      include: {
-        requester: { select: { id: true, name: true, email: true, role: true } },
-      },
-    });
-
-    if (!ticket) {
-      return res.status(404).json({ error: "Ticket not found" });
-    }
-
-    if (currentUser.role === "Requester" && ticket.requesterId !== currentUser.id) {
-      return res.status(403).json({ error: "You can only indicate resolution on your own tickets" });
-    }
-
-    if (ticket.status === "Closed" || ticket.status === "Cancelled") {
-      return res.status(400).json({ error: "Cannot indicate resolution on a closed or cancelled ticket" });
-    }
-
-    const updated = await prisma.ticket.update({
-      where: { id: ticketId },
-      data: { resolvedIndicated: true },
-    });
-
-    try {
-      await prisma.activityLog.create({
-        data: {
-          ticketId,
-          userId: currentUser.id,
-          action: "RESOLVE_INDICATED",
-          details: "Requester indicated problem appears resolved",
-        },
-      });
-    } catch (logErr) {
-      console.error("Failed to create activity log for resolution indication:", logErr);
-    }
-
-    res.status(200).json({
-      id: updated.id,
-      resolvedIndicated: true,
-      resolvedByRequester: true,
-      message: "Problem indicated as resolved",
-      ticket: updated,
-    });
-  } catch (error) {
-    console.error("Failed to indicate resolution:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
-app.post(
-  "/api/tickets/:id/resolve-indication",
-  authenticateToken,
-  requirePasswordChanged,
-  handleResolveIndication
-);
-app.patch(
-  "/api/tickets/:id/resolve-indication",
-  authenticateToken,
-  requirePasswordChanged,
-  handleResolveIndication
-);
 
 // ---------------------------------------------------------------------------
 // Lab 2 — Issue 5: Upload Attachment (POST /api/tickets/:id/attachments)
