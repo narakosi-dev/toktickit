@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:server": "npm.cmd test --prefix server",
-    "test:client": "npm.cmd test --prefix client",
-    "test": "npm.cmd run test:server && npm.cmd run test:client",
+    "test:server": "npm test --prefix server",
+    "test:client": "npm test --prefix client",
+    "test": "npm run test:server && npm run test:client",
     "e2e": "playwright test"
   },
   "devDependencies": {

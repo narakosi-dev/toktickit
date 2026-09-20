@@ -2,9 +2,9 @@ name: TokTickIT CI
 
 on:
   push:
-    branches: [main, lab2-staging]
+    branches: [main, lab2-staging, lab3-staging]
   pull_request:
-    branches: [main, lab2-staging]
+    branches: [main, lab2-staging, lab3-staging]
 
 jobs:
   test-server:
@@ -41,16 +41,18 @@ jobs:
         run: npm ci --prefix server
 
       - name: Run Prisma migrations and seed
+        working-directory: server
         env:
           DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
         run: |
-          npx --prefix server prisma migrate deploy
-          npx --prefix server prisma db seed
+          npx prisma migrate deploy
+          npm run prisma:seed
 
-      - name: Run server test suite (34 tests)
+      - name: Run server test suite (152 tests)
+        working-directory: server
         env:
           DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
-        run: npm test --prefix server
+        run: npm test
 
   test-client:
     name: Client Component Tests & Build
@@ -70,7 +72,7 @@ jobs:
       - name: Install client dependencies
         run: npm ci --prefix client
 
-      - name: Run client unit tests (22 tests)
+      - name: Run client unit tests (68 tests)
         run: npm test --prefix client
 
       - name: Build client for production
@@ -118,23 +120,15 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Prepare database
+        working-directory: server
         env:
           DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
         run: |
-          npx --prefix server prisma migrate deploy
-          npx --prefix server prisma db seed
+          npx prisma migrate deploy
+          npm run prisma:seed
 
-      - name: Start server in background
+      - name: Run Playwright E2E tests (12 tests)
         env:
           DATABASE_URL: "postgresql://toktickit:toktickit_dev_password@localhost:5432/toktickit_db?schema=public"
-          PORT: 3001
-        run: npm run dev --prefix server &
-
-      - name: Start client in background
-        run: npm run dev --prefix client &
-
-      - name: Wait for services to be healthy
-        run: npx wait-on http://localhost:5173 http://localhost:3001/api/requesters
-
-      - name: Run Playwright E2E tests
+          CI: "true"
         run: npx playwright test
