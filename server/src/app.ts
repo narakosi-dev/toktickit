@@ -190,13 +190,20 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
     }
 
     // --- Foreign key existence check ---
-    const [requester, category, relatedSystem] = await Promise.all([
+    const [userRequester, legacyRequester, category, relatedSystem] = await Promise.all([
+      prisma.user.findFirst({ where: { id: requesterId, isActive: true } }),
       prisma.requester.findFirst({ where: { id: requesterId, active: true } }),
       prisma.category.findUnique({ where: { id: categoryId } }),
       prisma.relatedSystem.findFirst({ where: { id: relatedSystemId, active: true } }),
     ]);
 
-    if (!requester || !category || !relatedSystem) {
+    let targetUserId = userRequester?.id;
+    if (!targetUserId && legacyRequester) {
+      const matchedUser = await prisma.user.findUnique({ where: { email: legacyRequester.email } });
+      targetUserId = matchedUser?.id;
+    }
+
+    if ((!userRequester && !legacyRequester) || !category || !relatedSystem || !targetUserId) {
       res.status(404).json({ error: "Invalid requester, category, or related system" });
       return;
     }
@@ -233,7 +240,7 @@ app.post("/api/tickets", async (req: Request, res: Response) => {
             description: trimmedDescription,
             priority,
             status: "New",
-            requesterId,
+            requesterId: targetUserId,
             categoryId,
             relatedSystemId,
           },

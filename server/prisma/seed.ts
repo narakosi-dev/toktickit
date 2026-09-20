@@ -51,7 +51,15 @@ async function main() {
       role: "Administrator" as const,
       passwordHash: defaultPasswordHash,
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
+    },
+    {
+      name: "Admin User",
+      email: "admin@toktickit.com",
+      role: "Administrator" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: false,
     },
     // IT Staff
     {
@@ -60,7 +68,15 @@ async function main() {
       role: "IT_Staff" as const,
       passwordHash: defaultPasswordHash,
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
+    },
+    {
+      name: "Bob Smith",
+      email: "bob.smith@example.com",
+      role: "IT_Staff" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: false,
     },
     {
       name: "Bob Support",
@@ -79,6 +95,14 @@ async function main() {
       mustChangePassword: true,
     },
     // Requesters
+    {
+      name: "Alice Johnson",
+      email: "alice.johnson@example.com",
+      role: "Requester" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: false,
+    },
     {
       name: "Sarah Johnson",
       email: "sarah.requester@toktick.local",
@@ -152,6 +176,7 @@ async function main() {
       update: {
         name: u.name,
         role: u.role,
+        passwordHash: u.passwordHash,
         isActive: u.isActive,
         mustChangePassword: u.mustChangePassword,
       },
