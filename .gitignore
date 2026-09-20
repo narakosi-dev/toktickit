@@ -17,3 +17,5 @@ server/uploads/*
 # test artifacts
 test-results/
 playwright-report/
+scripts/capture-board-views.cjs
+scratch/
