@@ -145,10 +145,10 @@ export default function AppShell() {
               <span style={{ fontSize: "1.2rem" }}>👤</span>
               <div>
                 <div className="fw-semibold small leading-tight d-flex align-items-center gap-2">
-                  {user.name}
+                  <span className="user-name">{user.name}</span>
                   {badge && (
                     <span
-                      className="badge"
+                      className="badge user-role-badge"
                       style={{
                         backgroundColor: badge.bg,
                         fontSize: "0.65rem",
