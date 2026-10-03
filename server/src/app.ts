@@ -580,7 +580,18 @@ app.post(
         select: { id: true, requesterId: true },
       });
 
-      if (!ticket || ticket.requesterId !== requesterId) {
+      let isOwner = Boolean(ticket && ticket.requesterId === requesterId);
+      if (!isOwner && ticket) {
+        const legacyReq = await prisma.requester.findUnique({ where: { id: requesterId } });
+        if (legacyReq) {
+          const matchedUser = await prisma.user.findUnique({ where: { email: legacyReq.email } });
+          if (matchedUser && matchedUser.id === ticket.requesterId) {
+            isOwner = true;
+          }
+        }
+      }
+
+      if (!ticket || !isOwner) {
         cleanupUploadedFile(req.file);
         res.status(404).json({ error: "Ticket not found or unauthorized" });
         return;
@@ -652,7 +663,18 @@ app.get("/api/attachments/:id/download", async (req: Request, res: Response) => 
       },
     });
 
-    if (!attachment || attachment.ticket.requesterId !== requesterId) {
+    let isDownloadOwner = Boolean(attachment && attachment.ticket.requesterId === requesterId);
+    if (!isDownloadOwner && attachment) {
+      const legacyReq = await prisma.requester.findUnique({ where: { id: requesterId } });
+      if (legacyReq) {
+        const matchedUser = await prisma.user.findUnique({ where: { email: legacyReq.email } });
+        if (matchedUser && matchedUser.id === attachment.ticket.requesterId) {
+          isDownloadOwner = true;
+        }
+      }
+    }
+
+    if (!attachment || !isDownloadOwner) {
       res.status(404).json({ error: "Attachment not found or unauthorized" });
       return;
     }
@@ -709,7 +731,18 @@ app.patch("/api/attachments/:id/remove", async (req: Request, res: Response) => 
       },
     });
 
-    if (!attachment || attachment.ticket.requesterId !== parsedRequesterId) {
+    let isDeleteOwner = Boolean(attachment && attachment.ticket.requesterId === parsedRequesterId);
+    if (!isDeleteOwner && attachment) {
+      const legacyReq = await prisma.requester.findUnique({ where: { id: parsedRequesterId } });
+      if (legacyReq) {
+        const matchedUser = await prisma.user.findUnique({ where: { email: legacyReq.email } });
+        if (matchedUser && matchedUser.id === attachment.ticket.requesterId) {
+          isDeleteOwner = true;
+        }
+      }
+    }
+
+    if (!attachment || !isDeleteOwner) {
       res.status(404).json({ error: "Attachment not found or unauthorized" });
       return;
     }

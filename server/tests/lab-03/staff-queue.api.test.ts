@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { signToken } from "../../src/auth.js";
@@ -473,5 +473,9 @@ describe("Lab 3: IT Staff Shared Queue API (staff-queue.api.test.ts)", () => {
       expect(res.body.pagination.total).toBe(5);
       expect(res.body.pagination.totalPages).toBe(3);
     });
+  });
+
+  afterAll(() => {
+    setPrisma(null);
   });
 });

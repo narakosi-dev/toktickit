@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import bcrypt from "bcryptjs";
 import { app } from "../../src/app.js";
@@ -221,5 +221,9 @@ describe("Lab 3: Authentication APIs (/api/auth)", () => {
       expect(res.status).toBe(200);
       expect(res.body.message).toContain("Logged out");
     });
+  });
+
+  afterAll(() => {
+    setPrisma(null);
   });
 });
