@@ -100,6 +100,7 @@ async function main() {
     },
     // Administrator
     {
+      id: 6,
       name: "Alice Admin",
       email: "admin@toktick.local",
       role: "Administrator" as const,
@@ -108,6 +109,7 @@ async function main() {
       mustChangePassword: false,
     },
     {
+      id: 7,
       name: "Admin User",
       email: "admin@toktickit.com",
       role: "Administrator" as const,
@@ -117,6 +119,7 @@ async function main() {
     },
     // IT Staff
     {
+      id: 8,
       name: "Charlie Staff",
       email: "charlie.staff@toktick.local",
       role: "IT_Staff" as const,
@@ -125,6 +128,7 @@ async function main() {
       mustChangePassword: false,
     },
     {
+      id: 9,
       name: "Bob Smith",
       email: "bob.smith@example.com",
       role: "IT_Staff" as const,
@@ -133,6 +137,7 @@ async function main() {
       mustChangePassword: false,
     },
     {
+      id: 10,
       name: "Bob Support",
       email: "bob.staff@toktick.local",
       role: "IT_Staff" as const,
@@ -141,6 +146,7 @@ async function main() {
       mustChangePassword: true,
     },
     {
+      id: 11,
       name: "Alex Helpdesk",
       email: "alex.staff@toktick.local",
       role: "IT_Staff" as const,
@@ -150,6 +156,7 @@ async function main() {
     },
     // Additional Requesters
     {
+      id: 12,
       name: "Sarah Johnson",
       email: "sarah.requester@toktick.local",
       role: "Requester" as const,
@@ -158,6 +165,7 @@ async function main() {
       mustChangePassword: true,
     },
     {
+      id: 13,
       name: "Alice Johnson",
       email: "alice.johnson@example.com",
       role: "Requester" as const,
@@ -166,6 +174,7 @@ async function main() {
       mustChangePassword: false,
     },
     {
+      id: 14,
       name: "David Lee",
       email: "david.lee@toktick.local",
       role: "Requester" as const,
@@ -175,6 +184,7 @@ async function main() {
     },
     // Inactive Accounts
     {
+      id: 15,
       name: "Inactive User",
       email: "inactive.user@toktick.local",
       role: "Requester" as const,
@@ -183,6 +193,7 @@ async function main() {
       mustChangePassword: true,
     },
     {
+      id: 16,
       name: "Retired Staff",
       email: "retired.staff@toktick.local",
       role: "IT_Staff" as const,
@@ -192,6 +203,7 @@ async function main() {
     },
   ];
 
+  let reqSeq = 1;
   for (const u of users) {
     await prisma.user.upsert({
       where: { email: u.email },
@@ -203,7 +215,7 @@ async function main() {
         mustChangePassword: u.mustChangePassword,
       },
       create: {
-        ...(u.id ? { id: u.id } : {}),
+        id: u.id,
         name: u.name,
         email: u.email,
         role: u.role,
@@ -215,11 +227,12 @@ async function main() {
 
     // Also populate legacy Requester table if Requester
     if (u.role === "Requester") {
+      const requesterId = reqSeq++;
       await prisma.requester.upsert({
         where: { email: u.email },
         update: { name: u.name, active: u.isActive },
         create: {
-          ...(u.id ? { id: u.id } : {}),
+          id: requesterId,
           name: u.name,
           email: u.email,
           active: u.isActive,
