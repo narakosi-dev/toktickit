@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { signToken } from "../../src/auth.js";
@@ -452,5 +452,9 @@ describe("Lab 3: Administrator User Management API (users-admin.api.test.ts)", (
       expect(res.status).toBe(404);
       expect(res.body.error).toContain("not found");
     });
+  });
+
+  afterAll(() => {
+    setPrisma(null);
   });
 });

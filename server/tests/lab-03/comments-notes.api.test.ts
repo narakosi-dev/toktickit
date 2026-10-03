@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { signToken } from "../../src/auth.js";
@@ -653,5 +653,9 @@ describe("Lab 3: Public Comments & Confidential Internal Notes APIs (comments-no
 
       expect(delRes.status).toBe(405);
     });
+  });
+
+  afterAll(() => {
+    setPrisma(null);
   });
 });

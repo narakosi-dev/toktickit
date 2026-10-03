@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import express from "express";
 import {
@@ -180,5 +180,9 @@ describe("Lab 3: Authorization & Middleware Guards (authorization.api.test.ts)",
       expect(res.status).toBe(200);
       expect(res.body.message).toBe("Admin access granted");
     });
+  });
+
+  afterAll(() => {
+    setPrisma(null);
   });
 });

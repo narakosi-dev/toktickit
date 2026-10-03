@@ -44,6 +44,23 @@ async function main() {
 
   // 3. Seed Users (Requesters, IT Staff, Administrators)
   const users = [
+    // Requesters (Seeded first so id: 1 aligns with legacy Lab 2 requesterId = 1)
+    {
+      name: "Alice Johnson",
+      email: "alice.johnson@example.com",
+      role: "Requester" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: false,
+    },
+    {
+      name: "Sarah Johnson",
+      email: "sarah.requester@toktick.local",
+      role: "Requester" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: false,
+    },
     // Administrator
     {
       name: "Alice Admin",
@@ -94,23 +111,7 @@ async function main() {
       isActive: true,
       mustChangePassword: true,
     },
-    // Requesters
-    {
-      name: "Alice Johnson",
-      email: "alice.johnson@example.com",
-      role: "Requester" as const,
-      passwordHash: defaultPasswordHash,
-      isActive: true,
-      mustChangePassword: false,
-    },
-    {
-      name: "Sarah Johnson",
-      email: "sarah.requester@toktick.local",
-      role: "Requester" as const,
-      passwordHash: defaultPasswordHash,
-      isActive: true,
-      mustChangePassword: true,
-    },
+    // Additional Requesters
     {
       name: "Jennifer Anderson",
       email: "jennifer.anderson@toktick.local",
