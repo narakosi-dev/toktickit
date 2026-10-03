@@ -5,6 +5,14 @@ async function main() {
   const prisma = getPrisma();
   const defaultPasswordHash = await bcrypt.hash("Password123!", 10);
 
+  // 0. Reset PostgreSQL sequences so User and Requester start deterministically at 1
+  try {
+    await prisma.$executeRawUnsafe(`ALTER SEQUENCE IF EXISTS "User_id_seq" RESTART WITH 1;`);
+    await prisma.$executeRawUnsafe(`ALTER SEQUENCE IF EXISTS "Requester_id_seq" RESTART WITH 1;`);
+  } catch (err) {
+    console.warn("Notice: could not restart sequences:", err);
+  }
+
   // 1. Seed Categories (4 required categories)
   const categories = [
     "Account and Access",
@@ -44,22 +52,51 @@ async function main() {
 
   // 3. Seed Users (Requesters, IT Staff, Administrators)
   const users = [
-    // Requesters (Seeded first so id: 1 aligns with legacy Lab 2 requesterId = 1)
+    // Requesters (Seeded first with explicit IDs 1-5 to align with legacy Lab 2 test contracts)
     {
-      name: "Alice Johnson",
-      email: "alice.johnson@example.com",
+      id: 1,
+      name: "Nara Kosiyaporn",
+      email: "nara.kosi@kmutt.ac.th",
+      role: "Requester" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: false, // Student account ready without forced change
+    },
+    {
+      id: 2,
+      name: "Sunny farmhouse",
+      email: "nara2012sun@gmail.com",
       role: "Requester" as const,
       passwordHash: defaultPasswordHash,
       isActive: true,
       mustChangePassword: false,
     },
     {
-      name: "Sarah Johnson",
-      email: "sarah.requester@toktick.local",
+      id: 3,
+      name: "Jennifer Anderson",
+      email: "jennifer.anderson@example.com",
       role: "Requester" as const,
       passwordHash: defaultPasswordHash,
       isActive: true,
-      mustChangePassword: false,
+      mustChangePassword: true,
+    },
+    {
+      id: 4,
+      name: "Michael Brown",
+      email: "michael.brown@example.com",
+      role: "Requester" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: true,
+      mustChangePassword: true,
+    },
+    {
+      id: 5,
+      name: "Inactive Tester",
+      email: "inactive.tester@example.com",
+      role: "Requester" as const,
+      passwordHash: defaultPasswordHash,
+      isActive: false, // Explicitly inactive for Lab 2 test contract (create-ticket.test.ts:81)
+      mustChangePassword: true,
     },
     // Administrator
     {
@@ -113,20 +150,20 @@ async function main() {
     },
     // Additional Requesters
     {
-      name: "Jennifer Anderson",
-      email: "jennifer.anderson@toktick.local",
+      name: "Sarah Johnson",
+      email: "sarah.requester@toktick.local",
       role: "Requester" as const,
       passwordHash: defaultPasswordHash,
       isActive: true,
       mustChangePassword: true,
     },
     {
-      name: "Michael Brown",
-      email: "michael.brown@toktick.local",
+      name: "Alice Johnson",
+      email: "alice.johnson@example.com",
       role: "Requester" as const,
       passwordHash: defaultPasswordHash,
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
     {
       name: "David Lee",
@@ -135,22 +172,6 @@ async function main() {
       passwordHash: defaultPasswordHash,
       isActive: true,
       mustChangePassword: true,
-    },
-    {
-      name: "Nara Kosiyaporn",
-      email: "nara.kosi@kmutt.ac.th",
-      role: "Requester" as const,
-      passwordHash: defaultPasswordHash,
-      isActive: true,
-      mustChangePassword: false, // Student account ready without forced change
-    },
-    {
-      name: "Sunny farmhouse",
-      email: "nara2012sun@gmail.com",
-      role: "Requester" as const,
-      passwordHash: defaultPasswordHash,
-      isActive: true,
-      mustChangePassword: false,
     },
     // Inactive Accounts
     {
@@ -181,7 +202,15 @@ async function main() {
         isActive: u.isActive,
         mustChangePassword: u.mustChangePassword,
       },
-      create: u,
+      create: {
+        ...(u.id ? { id: u.id } : {}),
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        passwordHash: u.passwordHash,
+        isActive: u.isActive,
+        mustChangePassword: u.mustChangePassword,
+      },
     });
 
     // Also populate legacy Requester table if Requester
@@ -189,11 +218,25 @@ async function main() {
       await prisma.requester.upsert({
         where: { email: u.email },
         update: { name: u.name, active: u.isActive },
-        create: { name: u.name, email: u.email, active: u.isActive },
+        create: {
+          ...(u.id ? { id: u.id } : {}),
+          name: u.name,
+          email: u.email,
+          active: u.isActive,
+        },
       });
     }
   }
-  console.log("Users seeded: 1 Admin, 3 IT Staff, 6 Requesters, 2 Inactive accounts.");
+
+  // Sync PostgreSQL sequences to MAX(id) after manual insertions
+  try {
+    await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"User"', 'id'), COALESCE((SELECT MAX("id") FROM "User"), 1), true);`);
+    await prisma.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"Requester"', 'id'), COALESCE((SELECT MAX("id") FROM "Requester"), 1), true);`);
+  } catch (err) {
+    console.warn("Notice: could not sync sequences after seeding:", err);
+  }
+
+  console.log("Users seeded: 2 Admins, 4 IT Staff, 8 Requesters, 2 Inactive accounts.");
 
   // 4. Seed Initial Sample Tickets for Staff Queue Testing
   const sarah = await prisma.user.findUnique({ where: { email: "sarah.requester@toktick.local" } });
