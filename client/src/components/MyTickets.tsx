@@ -48,7 +48,11 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props)
   // Fetch tickets callback
   const loadTickets = useCallback(
     async (pageToLoad: number) => {
-      if (!requester) return;
+      if (!requester) {
+        setTickets([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError("");
       try {
@@ -69,13 +73,46 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props)
         setLoading(false);
       }
     },
-    [requester, search, categoryId, priority, status]
+    [requester?.id, search, categoryId, priority, status]
   );
 
   // Trigger load when requester, filters or page change
   useEffect(() => {
-    loadTickets(currentPage);
-  }, [loadTickets, currentPage]);
+    let canceled = false;
+    if (!requester) {
+      setTickets([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    fetchTickets({
+      requesterId: requester.id,
+      search: search.trim() || undefined,
+      categoryId: categoryId || undefined,
+      priority: priority || undefined,
+      status: status || undefined,
+      page: currentPage,
+      limit: 8,
+    })
+      .then((res) => {
+        if (!canceled) {
+          setTickets(res.tickets);
+          setPagination(res.pagination);
+          setLoading(false);
+        }
+      })
+      .catch((err: any) => {
+        if (!canceled) {
+          setError(err.message || "Failed to load tickets");
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [requester?.id, search, categoryId, priority, status, currentPage]);
 
   // Handle filter changes (resets to page 1)
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
