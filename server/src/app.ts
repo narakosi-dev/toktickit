@@ -68,6 +68,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
 import { commentsRouter } from "./routes/comments.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
+import { actionsRouter } from "./routes/actions.routes.js";
 import { authenticateToken, requirePasswordChanged, verifyToken } from "./auth.js";
 
 export const app = express();
@@ -81,6 +82,7 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/tickets", commentsRouter);
+app.use("/api/tickets", actionsRouter);
 app.use("/api/admin", adminRouter);
 
 // ---------------------------------------------------------------------------
