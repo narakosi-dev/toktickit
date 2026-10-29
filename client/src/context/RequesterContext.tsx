@@ -56,6 +56,8 @@ export function useSyncRequesterFromAuth(user: { id: number; name: string; email
   useEffect(() => {
     if (user) {
       setRequester({ id: user.id, name: user.name, email: user.email, active: true });
+    } else {
+      clearRequester();
     }
   }, [user?.id]); // Only re-sync when user changes
 }
