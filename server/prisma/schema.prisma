@@ -64,13 +64,14 @@ model User {
   publicComments     PublicComment[]
   internalNotes      InternalNote[]
   activityLogs       ActivityLog[]
+  actionsTaken       ActionTaken[]   @relation("ActionTakenStaff")
 
   @@index([role])
   @@index([isActive])
 }
 
 // ---------------------------------------------------------------------------
-// Tickets, Attachments, Comments, Notes, and Logs
+// Tickets, Attachments, Comments, Notes, Actions Taken, and Logs
 // ---------------------------------------------------------------------------
 model Ticket {
   id                Int             @id @default(autoincrement())
@@ -80,8 +81,9 @@ model Ticket {
   description       String
   priority          String          // Requester Impact Priority: Low | Medium | High | Critical
   itPriority        String?         // IT Staff Override Priority: Low | Medium | High | Critical
-  status            String          @default("New") // New | Assigned | In_Progress | Pending_Requester | Resolved | Closed
+  status            String          @default("New") // New | Open | In_Progress | Waiting_for_Requester | Resolved | Closed | Reopened | Cancelled
   resolvedIndicated Boolean         @default(false)
+  version           Int             @default(1)     // Optimistic Concurrency Control counter
   requesterId       Int
   categoryId        Int
   relatedSystemId   Int
@@ -97,6 +99,7 @@ model Ticket {
   publicComments    PublicComment[]
   internalNotes     InternalNote[]
   activityLogs      ActivityLog[]
+  actionsTaken      ActionTaken[]
 
   @@index([requesterId])
   @@index([assignedToId])
@@ -164,4 +167,28 @@ model ActivityLog {
 
   @@index([ticketId])
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4: Actions Taken by IT Staff
+// ---------------------------------------------------------------------------
+model ActionTaken {
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  performedById    Int
+  actionDateTime   DateTime  @default(now())
+  description      String
+  result           String
+  followUpRequired Boolean   @default(false)
+  followUpNote     String?
+  attachmentNotes  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  ticket      Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  performedBy User   @relation("ActionTakenStaff", fields: [performedById], references: [id])
+
+  @@index([ticketId])
+  @@index([performedById])
+  @@index([actionDateTime])
 }
