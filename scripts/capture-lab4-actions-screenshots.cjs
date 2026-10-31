@@ -41,27 +41,30 @@ function startServer(port = 5174) {
 }
 
 const mockStaffUser = {
-  id: 2,
-  username: 'somchai',
-  fullName: 'Somchai Prasert',
+  id: 3,
+  username: 'charlie',
+  name: 'Charlie Staff',
+  fullName: 'Charlie Staff',
   role: 'IT_Staff',
-  email: 'somchai@example.com',
+  email: 'charlie.staff@toktick.local',
   mustChangePassword: false,
 };
 
 const mockRequesterUser = {
-  id: 10,
-  username: 'komsan',
-  fullName: 'Dr. Komsan Tech',
+  id: 5,
+  username: 'sarah',
+  name: 'Sarah Johnson',
+  fullName: 'Sarah Johnson',
   role: 'Requester',
-  email: 'komsan@example.com',
+  email: 'sarah.requester@toktick.local',
   mustChangePassword: false,
 };
 
 const mockStaffMembers = [
-  { id: 1, fullName: 'Anan Sukjai', email: 'anan@example.com', role: 'Administrator' },
-  { id: 2, fullName: 'Somchai Prasert', email: 'somchai@example.com', role: 'IT_Staff' },
-  { id: 3, fullName: 'Wichai Thongdee', email: 'wichai@example.com', role: 'IT_Staff' },
+  { id: 1, name: 'Alice Admin', fullName: 'Alice Admin', email: 'admin@toktick.local', role: 'Administrator' },
+  { id: 2, name: 'Alex Helpdesk', fullName: 'Alex Helpdesk', email: 'alex.staff@toktick.local', role: 'IT_Staff' },
+  { id: 3, name: 'Charlie Staff', fullName: 'Charlie Staff', email: 'charlie.staff@toktick.local', role: 'IT_Staff' },
+  { id: 4, name: 'Bob Smith', fullName: 'Bob Smith', email: 'bob.smith@example.com', role: 'IT_Staff' },
 ];
 
 const mockActionsTaken = [
@@ -70,26 +73,28 @@ const mockActionsTaken = [
     ticketId: 101,
     actionDateTime: '2026-10-29T08:30:00.000Z',
     performedById: 2,
-    performedBy: { id: 2, fullName: 'Somchai Prasert', role: 'IT_Staff' },
+    performedBy: { id: 2, name: 'Alex Helpdesk', fullName: 'Alex Helpdesk', role: 'IT_Staff', email: 'alex.staff@toktick.local' },
     description: 'Inspected rack switch B3-SW01 and identified CRC errors on SFP port 24.',
     result: 'Replaced faulty OM3 fiber patch cord and cleaned optical transceivers.',
     followUpRequired: false,
     followUpNote: null,
     attachmentNotes: 'optical-power-meter-reading.log',
     createdAt: '2026-10-29T08:45:00.000Z',
+    updatedAt: '2026-10-29T08:45:00.000Z',
   },
   {
     id: 2,
     ticketId: 101,
     actionDateTime: '2026-10-29T10:15:00.000Z',
     performedById: 3,
-    performedBy: { id: 3, fullName: 'Wichai Thongdee', role: 'IT_Staff' },
+    performedBy: { id: 3, name: 'Charlie Staff', fullName: 'Charlie Staff', role: 'IT_Staff', email: 'charlie.staff@toktick.local' },
     description: 'Monitored port statistics and ran 15-minute ping continuity test.',
     result: 'Zero packet loss observed; interface counters reset and clear.',
     followUpRequired: true,
     followUpNote: 'Check switch syslog tomorrow morning at 09:00 for any recurring link down events.',
     attachmentNotes: null,
     createdAt: '2026-10-29T10:30:00.000Z',
+    updatedAt: '2026-10-29T10:30:00.000Z',
   },
 ];
 
@@ -104,9 +109,11 @@ const mockTicketDetail = {
   status: 'In_Progress',
   version: 3,
   resolvedIndicated: false,
-  requesterId: 10,
-  requester: { id: 10, name: 'Dr. Komsan Tech', email: 'komsan@example.com' },
-  assignedTo: { id: 2, name: 'Somchai Prasert', email: 'somchai@example.com' },
+  requesterId: 5,
+  requester: { id: 5, name: 'Sarah Johnson', fullName: 'Sarah Johnson', email: 'sarah.requester@toktick.local' },
+  assignedTo: { id: 3, name: 'Charlie Staff', fullName: 'Charlie Staff', email: 'charlie.staff@toktick.local', role: 'IT_Staff' },
+  owner: { id: 3, name: 'Charlie Staff', fullName: 'Charlie Staff', email: 'charlie.staff@toktick.local', role: 'IT_Staff' },
+  assignee: { id: 3, name: 'Charlie Staff', fullName: 'Charlie Staff', email: 'charlie.staff@toktick.local', role: 'IT_Staff' },
   category: { id: 1, name: 'Network Infrastructure' },
   relatedSystem: { id: 2, name: 'Campus LAN Backbone' },
   attachments: [],
@@ -229,9 +236,9 @@ async function main() {
   await addBtn.click();
   await page.waitForSelector('text=Record Action Taken');
 
-  // Check that "Performed By" defaulted to Somchai Prasert
+  // Check that "Performed By" defaulted to Charlie Staff (ID 3)
   const selectedStaff = await page.$eval('#performedBySelect', (el) => el.value);
-  console.log('Default Performed By in modal:', selectedStaff, '(expected 2)');
+  console.log('Default Performed By in modal:', selectedStaff, '(expected 3)');
 
   // Fill valid description and result so only the follow-up note triggers validation
   await page.fill('#actionDescription', 'Tested network fiber transceivers.');
@@ -258,7 +265,7 @@ async function main() {
   currentUser = mockRequesterUser;
   await page.evaluate(() => {
     localStorage.setItem('toktickit_auth_token', 'mock-requester-jwt-token');
-    localStorage.setItem('current_requester_id', '10');
+    localStorage.setItem('current_requester_id', '5');
   });
   await page.goto('http://localhost:5174');
 

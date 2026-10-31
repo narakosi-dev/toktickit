@@ -414,4 +414,42 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByText("Record Action Taken")).not.toBeInTheDocument();
   });
+
+  it("UI-ACT-10: does not re-fetch actions taken when onActionsChange prop reference changes (avoids flash on parent re-render)", async () => {
+    (api.fetchActionsTaken as any).mockResolvedValue({
+      ticketId: 101,
+      ticketNumber: "TKT-2026-000101",
+      totalActions: 1,
+      actionsTaken: [mockActionsList[0]],
+    });
+
+    const onActionsChange1 = vi.fn();
+    const { rerender } = render(
+      <ActionsTakenSection
+        ticketId={101}
+        token="mock-staff-jwt-token"
+        readOnly={false}
+        onActionsChange={onActionsChange1}
+      />
+    );
+
+    await waitFor(() => {
+      expect(api.fetchActionsTaken).toHaveBeenCalledTimes(1);
+    });
+    expect(onActionsChange1).toHaveBeenCalledWith(1);
+
+    // Re-render with a new function reference (as happens on keystrokes in parent component)
+    const onActionsChange2 = vi.fn();
+    rerender(
+      <ActionsTakenSection
+        ticketId={101}
+        token="mock-staff-jwt-token"
+        readOnly={false}
+        onActionsChange={onActionsChange2}
+      />
+    );
+
+    // Verify fetchActionsTaken was NOT called again
+    expect(api.fetchActionsTaken).toHaveBeenCalledTimes(1);
+  });
 });

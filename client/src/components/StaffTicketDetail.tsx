@@ -626,7 +626,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
             readOnly={false}
             staffMembers={staffMembers}
             currentUserId={user?.id}
-            onActionsChange={(count) => setActionsCount(count)}
+            onActionsChange={setActionsCount}
           />
 
           <div className="zen-card p-4">

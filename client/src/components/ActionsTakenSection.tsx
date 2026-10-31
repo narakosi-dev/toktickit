@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   fetchActionsTaken,
   createActionTaken,
@@ -71,6 +71,12 @@ export default function ActionsTakenSection({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  // Keep onActionsChange in a ref so loadActions identity does not change on parent re-renders
+  const onActionsChangeRef = useRef(onActionsChange);
+  useEffect(() => {
+    onActionsChangeRef.current = onActionsChange;
+  }, [onActionsChange]);
+
   const loadActions = useCallback(async () => {
     // Fix 2: ensure loading terminates if token is absent
     if (!token) {
@@ -83,15 +89,15 @@ export default function ActionsTakenSection({
       const data = await fetchActionsTaken(token, ticketId);
       const list = data.actionsTaken || [];
       setActions(list);
-      if (onActionsChange) {
-        onActionsChange(list.length);
+      if (onActionsChangeRef.current) {
+        onActionsChangeRef.current(list.length);
       }
     } catch (err: any) {
       setError(err.message || "Failed to load actions taken");
     } finally {
       setLoading(false);
     }
-  }, [ticketId, token, onActionsChange]);
+  }, [ticketId, token]);
 
   useEffect(() => {
     loadActions();
