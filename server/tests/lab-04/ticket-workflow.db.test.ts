@@ -2,9 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { getPrisma } from "../../src/prisma.js";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "toktickit-dev-jwt-secret-do-not-use-in-production-min-32-chars";
+import { signToken } from "../../src/auth.js";
 
 describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", () => {
   let isDbAvailable = false;
@@ -19,8 +17,10 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
       await prisma.$queryRaw`SELECT 1`;
       isDbAvailable = true;
 
-      // 2. Resolve or create staff user
-      let staff = await prisma.user.findFirst({ where: { role: "IT_Staff", isActive: true } });
+      // 2. Resolve or create staff user with mustChangePassword = false
+      let staff = await prisma.user.findFirst({
+        where: { role: "IT_Staff", isActive: true, mustChangePassword: false },
+      });
       if (!staff) {
         staff = await prisma.user.create({
           data: {
@@ -34,11 +34,13 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
         });
       }
 
-      staffToken = jwt.sign(
-        { id: staff.id, email: staff.email, role: staff.role, name: staff.name, mustChangePassword: false },
-        JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+      staffToken = signToken({
+        id: staff.id,
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+        mustChangePassword: false,
+      });
 
       // 3. Resolve or create necessary category & system
       let category = await prisma.category.findFirst();

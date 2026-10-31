@@ -6,3 +6,4 @@ WHERE "status" IN ('Pending_Requester', 'pending_requester', 'pending requester'
 UPDATE "Ticket"
 SET "status" = 'Open'
 WHERE "status" IN ('Assigned', 'assigned');
+
