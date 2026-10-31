@@ -1,5 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export const OPEN_GROUP_STATUS = "OPEN_GROUP";
+
 export interface Category {
   id: number;
   name: string;
@@ -901,6 +903,99 @@ export async function updateActionTaken(
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
     throw new Error(errorBody.error || "Failed to update action taken");
+  }
+  return res.json();
+}
+
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Issue 10: Role Dashboard API Types & Endpoints
+// ---------------------------------------------------------------------------
+
+export interface StaffDashboardMetrics {
+  unassignedCount: number;
+  myAssignedCount: number;
+  statusBreakdown?: Record<string, number>;
+  statusCounts?: Record<string, number>;
+  priorityBreakdown?: Record<string, number>;
+  priorityCounts?: Record<string, number>;
+}
+
+export interface UrgentTicketItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  priority: string;
+  itPriority: string | null;
+  status: string;
+  requester: { id: number; name: string } | null;
+  assignedTo: { id: number; name: string } | null;
+  createdAt: string;
+}
+
+export interface RecentUpdatedTicketItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  priority: string;
+  itPriority: string | null;
+  status: string;
+  requester: { id: number; name: string } | null;
+  assignedTo: { id: number; name: string } | null;
+  updatedAt: string;
+}
+
+export interface StaffDashboardResponse {
+  metrics: StaffDashboardMetrics;
+  urgentTickets: UrgentTicketItem[];
+  recentUpdatedTickets: RecentUpdatedTicketItem[];
+  generatedAt?: string;
+}
+
+export async function fetchStaffDashboard(token: string): Promise<StaffDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/staff`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch staff dashboard");
+  }
+  return res.json();
+}
+
+export interface RequesterDashboardMetrics {
+  totalOpen: number;
+  inProgress: number;
+  waitingForRequester: number;
+  recentlyResolved: number;
+  closed: number;
+  closedCount?: number;
+}
+
+export interface RequesterRecentTicketItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  priority: string;
+  status: string;
+  resolvedIndicated: boolean;
+  category: { id: number; name: string } | null;
+  updatedAt: string;
+}
+
+export interface RequesterDashboardResponse {
+  metrics: RequesterDashboardMetrics;
+  recentTickets: RequesterRecentTicketItem[];
+  generatedAt?: string;
+}
+
+export async function fetchRequesterDashboard(token: string): Promise<RequesterDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/requester`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch requester dashboard");
   }
   return res.json();
 }

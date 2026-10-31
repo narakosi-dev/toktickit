@@ -6,17 +6,27 @@ import {
   Category,
   TicketListItem,
   PaginationMetadata,
+  OPEN_GROUP_STATUS,
 } from "../api.js";
 
 interface Props {
   onNavigateToCreate?: () => void;
   onSelectTicket?: (ticketId: number) => void;
+  initialStatus?: string;
 }
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
-const STATUSES = ["New", "In Progress", "Resolved"];
+const STATUSES = [
+  { label: "My Open Tickets", value: OPEN_GROUP_STATUS },
+  { label: "New", value: "New" },
+  { label: "Open", value: "Open" },
+  { label: "In Progress", value: "In_Progress" },
+  { label: "Waiting for Requester", value: "Waiting_for_Requester" },
+  { label: "Resolved", value: "Resolved" },
+  { label: "Closed", value: "Closed" },
+];
 
-export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props) {
+export default function MyTickets({ onNavigateToCreate, onSelectTicket, initialStatus }: Props) {
   const { requester } = useRequester();
 
   // Data state
@@ -35,8 +45,12 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props)
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priority, setPriority] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(initialStatus || "");
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setStatus(initialStatus || "");
+  }, [initialStatus]);
 
   // Load categories on mount
   useEffect(() => {
@@ -293,8 +307,8 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props)
             >
               <option value="">All Statuses</option>
               {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </select>

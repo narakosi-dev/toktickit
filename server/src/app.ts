@@ -315,7 +315,17 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
     }
 
     if (status && typeof status === "string" && status.trim()) {
-      where.status = status.trim();
+      const s = status.trim();
+      const norm = s.replace(/\s+/g, "_");
+      if (norm === "OPEN_GROUP") {
+        where.status = { in: ["New", "Open", "In_Progress", "Waiting_for_Requester", "Reopened"] };
+      } else if (norm.toLowerCase() === "in_progress") {
+        where.status = "In_Progress";
+      } else if (norm.toLowerCase() === "waiting_for_requester" || norm.toLowerCase() === "pending_requester") {
+        where.status = "Waiting_for_Requester";
+      } else {
+        where.status = norm;
+      }
     }
 
     let orderBy: any = { ticketDate: "desc" };
