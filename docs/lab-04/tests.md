@@ -22,11 +22,11 @@ The testing strategy follows Test-Driven Development (TDD) across all architectu
 
 | Test ID | Type | Requirement / AC | What It Tests | Expected Result | Automated Test File | Final Status |
 | :--- | :---: | :---: | :--- | :--- | :--- | :---: |
-| **API-ACT-01** | API | AC-01 / FR-01 | Create valid Action Taken with authenticated IT Staff | 201 Created; record saved with correct `ticketId`, `actionDateTime`, and `performedById` | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| **API-ACT-02** | API | AC-02 / BR-03 | Reject Action Taken when `followUpRequired=true` but `followUpNote` is empty | 400 Bad Request; validation error message indicating follow-up note is required | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| **API-ACT-03** | API | AC-03 / BR-02 | Different IT Staff member records action on ticket owned by another technician | 201 Created; `performedById` reflects acting staff; ticket owner remains unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| **API-ACT-04** | API | AC-04 / BR-04 | Requester retrieves Actions Taken on their own ticket | 200 OK; chronological array of Actions Taken returned | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
-| **API-ACT-05** | API | AC-04 / BR-04 | Requester attempts to `POST` or `PATCH` an Action Taken | 403 Forbidden; write operation rejected | `server/tests/lab-04/actions-taken.api.test.ts` | Planned |
+| **API-ACT-01** | API | AC-01 / FR-01 | Create valid Action Taken with authenticated IT Staff | 201 Created; record saved with correct `ticketId`, `actionDateTime`, and `performedById` | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| **API-ACT-02** | API | AC-02 / BR-03 | Reject Action Taken when `followUpRequired=true` but `followUpNote` is empty | 400 Bad Request; validation error message indicating follow-up note is required | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| **API-ACT-03** | API | AC-03 / BR-02 | Different IT Staff member records action on ticket owned by another technician | 201 Created; `performedById` reflects acting staff; ticket owner remains unchanged | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| **API-ACT-04** | API | AC-04 / BR-04 | Requester retrieves Actions Taken on their own ticket | 200 OK; chronological array of Actions Taken returned | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
+| **API-ACT-05** | API | AC-04 / BR-04 | Requester attempts to `POST` or `PATCH` an Action Taken | 403 Forbidden; write operation rejected | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | **API-ACT-06** | API | AC-05 / BR-04 | Requester attempts to view Actions Taken on ticket owned by another requester | 404 Not Found; zero information leakage | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | **API-ACT-07** | API | FR-03 / BR-01 | Update existing Action Taken details (result, follow-up note) by IT Staff | 200 OK; updated fields persisted | `server/tests/lab-04/actions-taken.api.test.ts` | Pass |
 | **API-WKF-01** | API | AC-06 / BR-06 | Permitted status transition from `New` to `Open` by IT Staff | 200 OK; ticket status updated; version incremented | `server/tests/lab-04/ticket-workflow.api.test.ts` | Pass |
@@ -60,7 +60,7 @@ The testing strategy follows Test-Driven Development (TDD) across all architectu
 | **E2E-WKF-01** | E2E | AC-06 / AC-09 | Requester flags issue resolved, IT Staff reviews Actions Taken and transitions to Resolved | Lifecycle flow completes; status verified across user sessions | `e2e/lab-04/ticket-resolution.spec.ts` | Pass |
 | **E2E-DSH-01** | E2E | AC-10 / AC-12 | Staff Dashboard loads, cards clicked, navigation to filtered queue verified | Filtered queue view renders matching tickets; responsive on Desktop, Tablet, Mobile | `e2e/lab-04/dashboards.spec.ts` | Pass |
 | **E2E-DSH-02** | E2E | AC-11 / AC-12 | Requester Dashboard loads, cards clicked, navigation to My Tickets verified | Personal tickets displayed; responsive on Desktop, Tablet, Mobile | `e2e/lab-04/dashboards.spec.ts` | Pass |
-| **REG-ALL-01** | REG | AC-15 | Full regression execution of Labs 1, 2, and 3 test suites | 100% tests pass (152 server tests, 68 client tests, Lab 1-3 E2E tests) | `tests/lab-01/*`, `tests/lab-02/*`, `tests/lab-03/*` | Planned |
+| **REG-ALL-01** | REG | AC-15 | Full regression execution of Labs 1, 2, and 3 test suites | 100% tests pass (152 server tests, 68 client tests, Lab 1-3 E2E tests) | `tests/lab-01/*`, `tests/lab-02/*`, `tests/lab-03/*` | Pass |
 
 ---
 
