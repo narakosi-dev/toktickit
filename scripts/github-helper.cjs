@@ -77,7 +77,7 @@ async function main() {
       const prNumber = process.argv[3];
       const bodyOrFile = process.argv[4];
       let bodyText = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         bodyText = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const title = process.argv[5];
@@ -93,7 +93,7 @@ async function main() {
       const base = process.argv[5] || 'lab4-staging';
       const bodyOrFile = process.argv[6] || '';
       let body = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         body = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const res = await githubRequest('POST', '/pulls', { title, head, base, body });
@@ -128,7 +128,7 @@ async function main() {
       const title = process.argv[3];
       const bodyOrFile = process.argv[4] || '';
       let body = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         body = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const labels = process.argv[5] ? process.argv[5].split(',') : [];
@@ -147,7 +147,7 @@ async function main() {
       const payload = {};
       if (state && state !== '-') payload.state = state;
       if (bodyOrFile) {
-        if (fs.existsSync(bodyOrFile)) {
+        if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
           payload.body = fs.readFileSync(bodyOrFile, 'utf8');
         } else {
           payload.body = bodyOrFile;
@@ -216,11 +216,43 @@ async function main() {
       }
       break;
     }
+    case 'check-run': {
+      const runId = process.argv[3];
+      const res = await githubRequest('GET', `/actions/runs/${runId}/jobs`);
+      if (res.data?.jobs) {
+        res.data.jobs.forEach((j) => {
+          console.log(`Job: ${j.name} (id: ${j.id}) - status: ${j.status}, conclusion: ${j.conclusion}`);
+          if (j.steps) {
+            j.steps.forEach((s) => {
+              if (s.conclusion === 'failure' || s.conclusion === 'timed_out' || s.status === 'in_progress') {
+                console.log(`   -> Step: ${s.name} - status: ${s.status}, conclusion: ${s.conclusion}`);
+              }
+            });
+          }
+        });
+      } else {
+        console.log(JSON.stringify(res.data, null, 2));
+      }
+      break;
+    }
+    case 'job-log': {
+      const jobId = process.argv[3];
+      const res = await githubRequest('GET', `/actions/jobs/${jobId}/logs`);
+      console.log(typeof res.data === 'string' ? res.data.slice(-3000) : JSON.stringify(res.data));
+      break;
+    }
+    case 'request-reviewers': {
+      const prNumber = process.argv[3];
+      const reviewers = process.argv[4] ? process.argv[4].split(',') : [];
+      const res = await githubRequest('POST', `/pulls/${prNumber}/requested_reviewers`, { reviewers });
+      console.log(`Requested reviewers for #${prNumber}: status ${res.status}`);
+      break;
+    }
     case 'comment': {
       const issueOrPrNumber = process.argv[3];
       const bodyOrFile = process.argv[4];
       let body = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         body = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const res = await githubRequest('POST', `/issues/${issueOrPrNumber}/comments`, { body });

@@ -122,7 +122,7 @@ export default function StaffDashboard({
             Here's what's happening across your support queue today.
           </p>
         </div>
-        <div className="d-flex align-items-center gap-2">
+        <div className="d-flex flex-wrap align-items-center gap-2">
           {data?.generatedAt && (
             <span className="text-muted small d-none d-md-inline">
               Updated: {formatDate(data.generatedAt)}
@@ -335,7 +335,7 @@ export default function StaffDashboard({
             <div className="col-12 col-lg-8">
               <div className="zen-card p-4 h-100">
                 <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="d-flex flex-wrap align-items-center gap-2">
                     <h2 className="h5 fw-bold m-0" style={{ color: "var(--zen-dark)" }}>
                       Operational Highlights
                     </h2>
@@ -396,8 +396,8 @@ export default function StaffDashboard({
                               onKeyDown={(e) => e.key === "Enter" && onSelectTicket?.(t.id)}
                               data-testid={`urgent-ticket-${t.id}`}
                             >
-                              <div className="me-3" style={{ maxWidth: "65%" }}>
-                                <div className="d-flex align-items-center gap-2 mb-1">
+                              <div className="me-2 flex-grow-1" style={{ minWidth: 0 }}>
+                                <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
                                   <span className="badge bg-light text-dark border font-monospace small">
                                     {t.ticketNumber}
                                   </span>
@@ -468,8 +468,8 @@ export default function StaffDashboard({
                               onKeyDown={(e) => e.key === "Enter" && onSelectTicket?.(t.id)}
                               data-testid={`recent-ticket-${t.id}`}
                             >
-                              <div className="me-3" style={{ maxWidth: "65%" }}>
-                                <div className="d-flex align-items-center gap-2 mb-1">
+                              <div className="me-2 flex-grow-1" style={{ minWidth: 0 }}>
+                                <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
                                   <span className="badge bg-light text-dark border font-monospace small">
                                     {t.ticketNumber}
                                   </span>
