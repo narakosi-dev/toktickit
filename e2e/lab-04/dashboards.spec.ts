@@ -38,7 +38,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Role-Based Dashboards & Multi-Viewport Resp
     await navDashboardBtn.click();
 
     // Verify 5 Staff Metric Cards
-    await expect(page.getByTestId("metric-card-unassigned")).toBeVisible();
+    await expect(page.getByTestId("metric-card-new")).toBeVisible();
     await expect(page.getByTestId("metric-card-open")).toBeVisible();
     await expect(page.getByTestId("metric-card-in-progress")).toBeVisible();
     await expect(page.getByTestId("metric-card-waiting")).toBeVisible();

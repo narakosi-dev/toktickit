@@ -170,8 +170,8 @@ test.describe("Sprint 4 (Lab 4) E2E: Ticket Resolution & Advisory Workflow (Issu
 
     await resolvedRow.click();
     await expect(page.getByTestId("ticket-detail-view")).toBeVisible();
-    await expect(page.getByText(/Status:/i)).toBeVisible();
-    await expect(page.getByText(/Resolved/i).first()).toBeVisible();
+    await expect(page.locator(".badge-status-resolved")).toBeVisible();
+    await expect(page.getByTestId("ticket-detail-view").getByText("Resolved").first()).toBeVisible();
 
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "05-requester-ticket-resolved.png"),
