@@ -268,10 +268,21 @@ describe("Lab 4: Requester Dashboard API & Ownership Isolation (requester-dashbo
             if (args.where.requesterId !== undefined) {
               list = list.filter((t) => t.requesterId === args.where.requesterId);
             }
+            if (args.where.status) {
+              if (typeof args.where.status === "string") {
+                list = list.filter((t) => t.status === args.where.status);
+              } else if (args.where.status.in) {
+                list = list.filter((t) => args.where.status.in.includes(t.status));
+              }
+            }
           }
 
           if (args.orderBy?.updatedAt === "desc") {
             list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+          }
+
+          if (typeof args.skip === "number") {
+            list = list.slice(args.skip);
           }
 
           if (typeof args.take === "number") {
@@ -287,6 +298,8 @@ describe("Lab 4: Requester Dashboard API & Ownership Isolation (requester-dashbo
             resolvedIndicated: t.resolvedIndicated,
             updatedAt: t.updatedAt,
             category: t.categoryId ? mockCategories[t.categoryId] || null : null,
+            relatedSystem: null,
+            _count: { attachments: 0 },
           }));
         },
       },
@@ -436,6 +449,31 @@ describe("Lab 4: Requester Dashboard API & Ownership Isolation (requester-dashbo
       });
       expect(res.body.recentTickets).toEqual([]);
       expect(res.body.generatedAt).toBeDefined();
+    });
+  });
+
+  // =========================================================================
+  // Section 4: GET /api/tickets Status Filter Collision Prevention (Peer Review)
+  // =========================================================================
+  describe("GET /api/tickets: status filter normalization without status collision", () => {
+    it("status=Open filters strictly for tickets with status 'Open' (does not return other open statuses)", async () => {
+      // User B has tickets: id 301 (status: 'Open'), 302 (status: 'In_Progress'), 303 (status: 'Closed')
+      const res = await request(app).get("/api/tickets?requesterId=102&status=Open");
+      expect(res.status).toBe(200);
+      expect(res.body.tickets).toHaveLength(1);
+      expect(res.body.tickets[0].id).toBe(301);
+      expect(res.body.tickets[0].status).toBe("Open");
+    });
+
+    it("status=OPEN_GROUP returns all active open tickets (New, Open, In_Progress, Waiting_for_Requester, Reopened)", async () => {
+      // User A open tickets: New (201), In_Progress (202), Waiting_for_Requester (203)
+      const res = await request(app).get("/api/tickets?requesterId=101&status=OPEN_GROUP");
+      expect(res.status).toBe(200);
+      expect(res.body.tickets).toHaveLength(3);
+      const statuses = res.body.tickets.map((t: any) => t.status);
+      expect(statuses).toEqual(expect.arrayContaining(["New", "In_Progress", "Waiting_for_Requester"]));
+      expect(statuses).not.toContain("Resolved");
+      expect(statuses).not.toContain("Closed");
     });
   });
 });

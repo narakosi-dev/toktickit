@@ -217,7 +217,7 @@ describe("Dashboard Drill-down Integration Tests (Issue #58 / Review Feedback)",
     });
   });
 
-  it("Requester drill-down: clicks 'My Open Tickets' card and opens MyTickets with status=open", async () => {
+  it("Requester drill-down: clicks 'My Open Tickets' card and opens MyTickets with status=OPEN_GROUP", async () => {
     renderRequesterAppShell();
 
     // 1. Navigate to Dashboard tab
@@ -238,7 +238,7 @@ describe("Dashboard Drill-down Integration Tests (Issue #58 / Review Feedback)",
       expect(api.fetchTickets).toHaveBeenCalledWith(
         expect.objectContaining({
           requesterId: 20,
-          status: "open",
+          status: "OPEN_GROUP",
         })
       );
     });

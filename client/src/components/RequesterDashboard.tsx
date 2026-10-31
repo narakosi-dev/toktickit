@@ -172,11 +172,11 @@ export default function RequesterDashboard({
                     cursor: "pointer",
                     transition: "transform 0.15s ease",
                   }}
-                  onClick={() => onNavigateToMyTickets?.({ status: "open" })}
+                  onClick={() => onNavigateToMyTickets?.({ status: "OPEN_GROUP" })}
                   data-testid="metric-card-open"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && onNavigateToMyTickets?.({ status: "open" })}
+                  onKeyDown={(e) => e.key === "Enter" && onNavigateToMyTickets?.({ status: "OPEN_GROUP" })}
                 >
                   <div className="d-flex justify-content-between align-items-center mb-1">
                     <span className="text-uppercase fw-semibold" style={{ fontSize: "0.75rem", color: "#4A5568" }}>

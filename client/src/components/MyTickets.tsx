@@ -16,7 +16,7 @@ interface Props {
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const STATUSES = [
-  { label: "My Open Tickets", value: "open" },
+  { label: "My Open Tickets", value: "OPEN_GROUP" },
   { label: "New", value: "New" },
   { label: "Open", value: "Open" },
   { label: "In Progress", value: "In_Progress" },

@@ -108,7 +108,7 @@ describe("RequesterDashboard Component (Lab 4 — Issue 10 / UI-DSH-02)", () => 
 
     // Click My Open Tickets
     fireEvent.click(screen.getByTestId("metric-card-open"));
-    expect(onNavigateToMyTickets).toHaveBeenCalledWith({ status: "open" });
+    expect(onNavigateToMyTickets).toHaveBeenCalledWith({ status: "OPEN_GROUP" });
 
     // Click In Progress
     fireEvent.click(screen.getByTestId("metric-card-in-progress"));
