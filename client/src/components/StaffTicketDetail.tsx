@@ -130,6 +130,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
 
   // Tabs: "comments" (Public) vs "notes" (Internal)
   const [activeTab, setActiveTab] = useState<"comments" | "notes">("comments");
+  const [actionsCount, setActionsCount] = useState<number>(0);
 
   // Operational states
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
@@ -566,6 +567,11 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
                   </button>
                 </div>
               )}
+              {selectedStatus === "Resolved" && actionsCount === 0 && (
+                <div className="alert alert-warning py-1 px-2 small mt-2 mb-0" role="alert">
+                  ⚠️ <strong>Action Required:</strong> At least 1 Action Taken is required before marking this ticket as Resolved.
+                </div>
+              )}
             </div>
           </div>
 
@@ -619,6 +625,8 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
             token={token}
             readOnly={false}
             staffMembers={staffMembers}
+            currentUserId={user?.id}
+            onActionsChange={(count) => setActionsCount(count)}
           />
 
           <div className="zen-card p-4">

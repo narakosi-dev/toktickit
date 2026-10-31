@@ -12,6 +12,7 @@ interface Props {
   token: string | null;
   readOnly?: boolean;
   staffMembers?: StaffMember[];
+  currentUserId?: number;
   onActionsChange?: (count: number) => void;
 }
 
@@ -43,15 +44,18 @@ export default function ActionsTakenSection({
   token,
   readOnly = false,
   staffMembers = [],
+  currentUserId,
   onActionsChange,
 }: Props) {
   const [actions, setActions] = useState<ActionTakenItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Fix 2: If token is null, do not leave loading spinner running forever
+  const [loading, setLoading] = useState<boolean>(Boolean(token));
   const [error, setError] = useState("");
 
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingActionId, setEditingActionId] = useState<number | null>(null);
+  const [originalAction, setOriginalAction] = useState<ActionTakenItem | null>(null);
 
   // Form fields
   const [actionDateTime, setActionDateTime] = useState("");
@@ -68,7 +72,11 @@ export default function ActionsTakenSection({
   const [submitError, setSubmitError] = useState("");
 
   const loadActions = useCallback(async () => {
-    if (!token) return;
+    // Fix 2: ensure loading terminates if token is absent
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -89,10 +97,33 @@ export default function ActionsTakenSection({
     loadActions();
   }, [loadActions]);
 
+  // Non-blocking: Close modal on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isModalOpen && !submitting) {
+        handleCloseModal();
+      }
+    }
+    if (isModalOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen, submitting]);
+
   function handleOpenCreate() {
     setEditingActionId(null);
+    setOriginalAction(null);
     setActionDateTime(toLocalDatetimeInput(new Date()));
-    setPerformedById(staffMembers.length > 0 ? staffMembers[0].id : "");
+
+    // Fix 1: Default to logged-in technician (currentUserId), or fallback if not specified
+    if (currentUserId !== undefined) {
+      setPerformedById(currentUserId);
+    } else if (staffMembers.length > 0) {
+      setPerformedById(staffMembers[0].id);
+    } else {
+      setPerformedById("");
+    }
+
     setDescription("");
     setResult("");
     setFollowUpRequired(false);
@@ -105,9 +136,10 @@ export default function ActionsTakenSection({
 
   function handleOpenEdit(action: ActionTakenItem) {
     setEditingActionId(action.id);
+    setOriginalAction(action);
     const d = new Date(action.actionDateTime);
     setActionDateTime(isNaN(d.getTime()) ? toLocalDatetimeInput(new Date()) : toLocalDatetimeInput(d));
-    setPerformedById(action.performedById || (staffMembers.length > 0 ? staffMembers[0].id : ""));
+    setPerformedById(action.performedById !== undefined ? action.performedById : "");
     setDescription(action.description || "");
     setResult(action.result || "");
     setFollowUpRequired(Boolean(action.followUpRequired));
@@ -121,6 +153,7 @@ export default function ActionsTakenSection({
   function handleCloseModal() {
     setIsModalOpen(false);
     setEditingActionId(null);
+    setOriginalAction(null);
     setFieldErrors({});
     setSubmitError("");
   }
@@ -155,26 +188,59 @@ export default function ActionsTakenSection({
     setSubmitError("");
 
     try {
-      const payload: any = {
-        description: description.trim(),
-        result: result.trim(),
-        followUpRequired,
-        followUpNote: followUpRequired ? followUpNote.trim() : null,
-        attachmentNotes: attachmentNotes.trim() ? attachmentNotes.trim() : null,
-      };
+      if (editingActionId !== null && originalAction) {
+        // Non-blocking: send only changed fields when editing, and avoid truncating actionDateTime
+        const updatePayload: any = {};
 
-      if (actionDateTime) {
-        payload.actionDateTime = new Date(actionDateTime).toISOString();
-      }
+        if (description.trim() !== originalAction.description) {
+          updatePayload.description = description.trim();
+        }
+        if (result.trim() !== originalAction.result) {
+          updatePayload.result = result.trim();
+        }
+        if (followUpRequired !== originalAction.followUpRequired) {
+          updatePayload.followUpRequired = followUpRequired;
+        }
 
-      if (performedById !== "") {
-        payload.performedById = Number(performedById);
-      }
+        const newFollowUpNote = followUpRequired ? followUpNote.trim() : null;
+        if (newFollowUpNote !== (originalAction.followUpNote || null)) {
+          updatePayload.followUpNote = newFollowUpNote;
+        }
 
-      if (editingActionId !== null) {
-        await updateActionTaken(token, ticketId, editingActionId, payload);
+        const newAttachmentNotes = attachmentNotes.trim() ? attachmentNotes.trim() : null;
+        if (newAttachmentNotes !== (originalAction.attachmentNotes || null)) {
+          updatePayload.attachmentNotes = newAttachmentNotes;
+        }
+
+        if (performedById !== "" && Number(performedById) !== originalAction.performedById) {
+          updatePayload.performedById = Number(performedById);
+        }
+
+        // Only include actionDateTime if modified by the user
+        const origInput = toLocalDatetimeInput(new Date(originalAction.actionDateTime));
+        if (actionDateTime && actionDateTime !== origInput) {
+          updatePayload.actionDateTime = new Date(actionDateTime).toISOString();
+        }
+
+        await updateActionTaken(token, ticketId, editingActionId, updatePayload);
       } else {
-        await createActionTaken(token, ticketId, payload);
+        const createPayload: any = {
+          description: description.trim(),
+          result: result.trim(),
+          followUpRequired,
+          followUpNote: followUpRequired ? followUpNote.trim() : null,
+          attachmentNotes: attachmentNotes.trim() ? attachmentNotes.trim() : null,
+        };
+
+        if (actionDateTime) {
+          createPayload.actionDateTime = new Date(actionDateTime).toISOString();
+        }
+
+        if (performedById !== "") {
+          createPayload.performedById = Number(performedById);
+        }
+
+        await createActionTaken(token, ticketId, createPayload);
       }
 
       handleCloseModal();
@@ -414,7 +480,9 @@ export default function ActionsTakenSection({
                             </option>
                           ))
                         ) : (
-                          <option value="">Current Logged-in Staff</option>
+                          <option value={currentUserId ?? ""}>
+                            {currentUserId ? `Technician #${currentUserId}` : "Current Logged-in Staff"}
+                          </option>
                         )}
                       </select>
                     </div>

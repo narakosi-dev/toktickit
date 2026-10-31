@@ -83,6 +83,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
         token="mock-staff-jwt-token"
         readOnly={false}
         staffMembers={mockStaffMembers}
+        currentUserId={2}
       />
     );
 
@@ -123,6 +124,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
         token="mock-staff-jwt-token"
         readOnly={false}
         staffMembers={mockStaffMembers}
+        currentUserId={2}
       />
     );
 
@@ -197,7 +199,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     expect(screen.queryByRole("button", { name: /Edit Action/i })).not.toBeInTheDocument();
   });
 
-  it("UI-ACT-04: successfully creates an Action Taken and re-fetches the timeline", async () => {
+  it("UI-ACT-04: successfully creates an Action Taken with default logged-in technician and asserts performedById (FR-02 / AC-01)", async () => {
     (api.fetchActionsTaken as any).mockResolvedValueOnce({
       ticketId: 101,
       ticketNumber: "TKT-2026-000101",
@@ -208,7 +210,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     const newCreatedAction: api.ActionTakenItem = {
       id: 3,
       ticketId: 101,
-      performedById: 2,
+      performedById: 3, // Sarah Connor (currentUserId 3)
       actionDateTime: "2026-10-30T14:00:00.000Z",
       description: "Tested throughput across dual-band Wi-Fi channels.",
       result: "Packet loss eliminated, bandwidth achieved 450 Mbps.",
@@ -217,7 +219,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
       attachmentNotes: null,
       createdAt: "2026-10-30T14:05:00.000Z",
       updatedAt: "2026-10-30T14:05:00.000Z",
-      performedBy: { id: 2, name: "Michael Brown", role: "IT_Staff" },
+      performedBy: { id: 3, name: "Sarah Connor", role: "IT_Staff" },
     };
 
     (api.createActionTaken as any).mockResolvedValue(newCreatedAction);
@@ -234,6 +236,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
         token="mock-staff-jwt-token"
         readOnly={false}
         staffMembers={mockStaffMembers}
+        currentUserId={3} // Sarah Connor logged in
       />
     );
 
@@ -242,6 +245,10 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     });
 
     await user.click(screen.getByRole("button", { name: /\+ Add Action Taken/i }));
+
+    // Verify Performed By defaults to current logged-in technician (3)
+    const select = screen.getByLabelText(/Performed By/i) as HTMLSelectElement;
+    expect(select.value).toBe("3");
 
     await user.type(
       screen.getByLabelText(/Action Description/i),
@@ -262,6 +269,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
           description: "Tested throughput across dual-band Wi-Fi channels.",
           result: "Packet loss eliminated, bandwidth achieved 450 Mbps.",
           followUpRequired: false,
+          performedById: 3, // Assert performedById is strictly sent matching current technician
         })
       );
     });
@@ -270,7 +278,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     expect(await screen.findByText(/Tested throughput across dual-band Wi-Fi channels./i)).toBeInTheDocument();
   });
 
-  it("UI-ACT-05: opens edit modal, pre-fills values, and submits updated action", async () => {
+  it("UI-ACT-05: opens edit modal, pre-fills values, and submits only changed fields (FR-03 / AC-03)", async () => {
     (api.fetchActionsTaken as any).mockResolvedValue({
       ticketId: 101,
       ticketNumber: "TKT-2026-000101",
@@ -321,7 +329,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     });
   });
 
-  it("UI-ACT-06: validates minimum 5-character length on description and result", async () => {
+  it("UI-ACT-06: validates minimum 5-character length on description and result (BR-01 / BR-02)", async () => {
     (api.fetchActionsTaken as any).mockResolvedValue({
       ticketId: 101,
       ticketNumber: "TKT-2026-000101",
@@ -351,7 +359,7 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     expect(api.createActionTaken).not.toHaveBeenCalled();
   });
 
-  it("UI-ACT-07: displays error message when fetchActionsTaken fails", async () => {
+  it("UI-ACT-07: displays error message when fetchActionsTaken fails (AC-01 / NFR-02)", async () => {
     (api.fetchActionsTaken as any).mockRejectedValue(new Error("Network connection lost"));
 
     render(
@@ -363,5 +371,47 @@ describe("ActionsTakenSection Component (Lab 4 — Issue 6 / UI-ACT)", () => {
     );
 
     expect(await screen.findByText(/Network connection lost/i)).toBeInTheDocument();
+  });
+
+  it("UI-ACT-08: stops loading spinner and displays empty state when token is null", async () => {
+    render(
+      <ActionsTakenSection
+        ticketId={101}
+        token={null}
+        readOnly={true}
+      />
+    );
+
+    // Verify loading spinner is NOT displayed
+    expect(screen.queryByText(/Loading technical actions/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/No technical actions recorded yet/i)).toBeInTheDocument();
+    expect(api.fetchActionsTaken).not.toHaveBeenCalled();
+  });
+
+  it("UI-ACT-09: closes modal when user presses Escape key", async () => {
+    (api.fetchActionsTaken as any).mockResolvedValue({
+      ticketId: 101,
+      ticketNumber: "TKT-2026-000101",
+      totalActions: 0,
+      actionsTaken: [],
+    });
+
+    render(
+      <ActionsTakenSection
+        ticketId={101}
+        token="mock-staff-jwt-token"
+        readOnly={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /\+ Add Action Taken/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /\+ Add Action Taken/i }));
+    expect(screen.getByText("Record Action Taken")).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByText("Record Action Taken")).not.toBeInTheDocument();
   });
 });
