@@ -95,12 +95,13 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await page.fill("#followUpNoteInput", "Verify core temperatures during morning compute run tomorrow.");
     await page.getByRole("button", { name: /Save Action Taken/i }).click();
 
-    // Verify action is displayed on timeline scoped to actions-taken-section
-    await expect(actionsSection.getByText("Replaced thermal paste and cleaned heatsink fins with compressed air.")).toBeVisible();
-    await expect(actionsSection.getByText("CPU temperature dropped from 94C to 56C under benchmark load.")).toBeVisible();
-    await expect(actionsSection.getByText(/Follow-Up Required/i)).toBeVisible();
-    await expect(actionsSection.getByText("Verify core temperatures during morning compute run tomorrow.")).toBeVisible();
-    await expect(actionsSection.getByText("Bob Smith")).toBeVisible();
+    // Verify action is displayed on timeline scoped to actions-taken-timeline
+    const timeline = page.getByTestId("actions-taken-timeline");
+    await expect(timeline.getByText("Replaced thermal paste and cleaned heatsink fins with compressed air.")).toBeVisible();
+    await expect(timeline.getByText("CPU temperature dropped from 94C to 56C under benchmark load.")).toBeVisible();
+    await expect(timeline.getByText(/Follow-Up Required/i)).toBeVisible();
+    await expect(timeline.getByText("Verify core temperatures during morning compute run tomorrow.")).toBeVisible();
+    await expect(timeline.getByText("Bob Smith")).toBeVisible();
 
     // Sign out Staff 1
     await page.getByRole("button", { name: /Sign Out/i }).click();
@@ -134,10 +135,11 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await page.getByRole("button", { name: /Save Action Taken/i }).click();
 
     // Verify BOTH actions persist in chronological order on the timeline
-    await expect(actionsSectionAdmin.getByText("Replaced thermal paste and cleaned heatsink fins with compressed air.")).toBeVisible();
-    await expect(actionsSectionAdmin.getByText("Updated motherboard UEFI to version 2.4.1 and calibrated fan curve.")).toBeVisible();
-    await expect(actionsSectionAdmin.getByText("Bob Smith")).toBeVisible();
-    await expect(actionsSectionAdmin.getByText("Alice Admin")).toBeVisible();
+    const timelineAdmin = page.getByTestId("actions-taken-timeline");
+    await expect(timelineAdmin.getByText("Replaced thermal paste and cleaned heatsink fins with compressed air.")).toBeVisible();
+    await expect(timelineAdmin.getByText("Updated motherboard UEFI to version 2.4.1 and calibrated fan curve.")).toBeVisible();
+    await expect(timelineAdmin.getByText("Bob Smith")).toBeVisible();
+    await expect(timelineAdmin.getByText("Alice Admin")).toBeVisible();
 
     // Capture staff actions timeline screenshot
     await page.screenshot({
