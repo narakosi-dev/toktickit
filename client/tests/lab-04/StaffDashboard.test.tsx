@@ -151,11 +151,11 @@ describe("StaffDashboard Component (Lab 4 — Issue 10 / UI-DSH-01)", () => {
 
     // 4. Click Waiting Req card
     fireEvent.click(screen.getByTestId("metric-card-waiting"));
-    expect(onNavigateToQueue).toHaveBeenCalledWith({ status: "Pending_Requester" });
+    expect(onNavigateToQueue).toHaveBeenCalledWith({ status: "Waiting_for_Requester" });
 
     // 5. Click My Assigned card
     fireEvent.click(screen.getByTestId("metric-card-my-assigned"));
-    expect(onNavigateToQueue).toHaveBeenCalledWith({ assignee: "mine" });
+    expect(onNavigateToQueue).toHaveBeenCalledWith({ assignee: "mine", status: "active" });
   });
 
   it("UI-DSH-01: renders urgent tickets and handles row click to select ticket", async () => {
@@ -211,7 +211,7 @@ describe("StaffDashboard Component (Lab 4 — Issue 10 / UI-DSH-01)", () => {
 
     // Click My Queue
     fireEvent.click(screen.getByTestId("quick-action-my-queue"));
-    expect(onNavigateToQueue).toHaveBeenCalledWith({ assignee: "mine" });
+    expect(onNavigateToQueue).toHaveBeenCalledWith({ assignee: "mine", status: "active" });
 
     // Click All Tickets
     fireEvent.click(screen.getByTestId("quick-action-all-tickets"));

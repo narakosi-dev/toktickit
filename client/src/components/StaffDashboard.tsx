@@ -274,11 +274,11 @@ export default function StaffDashboard({
                     cursor: "pointer",
                     transition: "transform 0.15s ease",
                   }}
-                  onClick={() => onNavigateToQueue?.({ status: "Pending_Requester" })}
+                  onClick={() => onNavigateToQueue?.({ status: "Waiting_for_Requester" })}
                   data-testid="metric-card-waiting"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && onNavigateToQueue?.({ status: "Pending_Requester" })}
+                  onKeyDown={(e) => e.key === "Enter" && onNavigateToQueue?.({ status: "Waiting_for_Requester" })}
                 >
                   <div className="d-flex justify-content-between align-items-center mb-1">
                     <span className="text-uppercase fw-semibold" style={{ fontSize: "0.75rem", color: "#4A5568" }}>
@@ -305,11 +305,11 @@ export default function StaffDashboard({
                     cursor: "pointer",
                     transition: "transform 0.15s ease",
                   }}
-                  onClick={() => onNavigateToQueue?.({ assignee: "mine" })}
+                  onClick={() => onNavigateToQueue?.({ assignee: "mine", status: "active" })}
                   data-testid="metric-card-my-assigned"
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && onNavigateToQueue?.({ assignee: "mine" })}
+                  onKeyDown={(e) => e.key === "Enter" && onNavigateToQueue?.({ assignee: "mine", status: "active" })}
                 >
                   <div className="d-flex justify-content-between align-items-center mb-1">
                     <span className="text-uppercase fw-semibold" style={{ fontSize: "0.75rem", color: "#4A5568" }}>
@@ -535,7 +535,7 @@ export default function StaffDashboard({
                   <button
                     type="button"
                     className="btn btn-zen-outline-primary text-start d-flex align-items-center gap-2 py-2"
-                    onClick={() => onNavigateToQueue?.({ assignee: "mine" })}
+                    onClick={() => onNavigateToQueue?.({ assignee: "mine", status: "active" })}
                     data-testid="quick-action-my-queue"
                   >
                     <span>👤</span>

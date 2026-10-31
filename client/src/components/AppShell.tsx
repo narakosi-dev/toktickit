@@ -125,6 +125,7 @@ export default function AppShell() {
                 className={`zen-nav-btn ${activeTab === "staff-queue" ? "active" : ""}`}
                 onClick={() => {
                   setSelectedTicketId(null);
+                  setQueueFilter({});
                   setActiveTab("staff-queue");
                 }}
               >
@@ -137,6 +138,7 @@ export default function AppShell() {
                 className={`zen-nav-btn ${activeTab === "my-tickets" || (activeTab === "ticket-detail" && !isStaffOrAdmin) ? "active" : ""}`}
                 onClick={() => {
                   setSelectedTicketId(null);
+                  setMyTicketsFilter({});
                   setActiveTab("my-tickets");
                 }}
               >
@@ -258,6 +260,8 @@ export default function AppShell() {
 
         {activeTab === "staff-queue" && (
           <StaffTicketQueue
+            initialStatus={queueFilter.status}
+            initialAssignee={queueFilter.assignee}
             onSelectTicket={(ticketId) => {
               setSelectedTicketId(ticketId);
               setActiveTab("ticket-detail");
@@ -267,6 +271,7 @@ export default function AppShell() {
 
         {activeTab === "my-tickets" && (
           <MyTickets
+            initialStatus={myTicketsFilter.status}
             onNavigateToCreate={() => setActiveTab("create-ticket")}
             onSelectTicket={(ticketId) => {
               setSelectedTicketId(ticketId);

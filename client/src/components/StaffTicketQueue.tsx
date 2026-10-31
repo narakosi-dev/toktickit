@@ -17,10 +17,11 @@ interface Props {
 
 const STATUSES = [
   { label: "All Statuses", value: "All" },
+  { label: "Active Tickets", value: "active" },
   { label: "New", value: "New" },
   { label: "Open", value: "Open" },
   { label: "In Progress", value: "In_Progress" },
-  { label: "Pending Requester", value: "Pending_Requester" },
+  { label: "Waiting for Requester", value: "Waiting_for_Requester" },
   { label: "Resolved", value: "Resolved" },
   { label: "Closed", value: "Closed" },
 ];
@@ -85,20 +86,20 @@ export default function StaffTicketQueue({ onSelectTicket, initialStatus, initia
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (initialStatus) setStatus(initialStatus);
+    setStatus(initialStatus || "All");
   }, [initialStatus]);
 
   useEffect(() => {
-    if (initialAssignee) setAssignee(initialAssignee);
+    setAssignee(initialAssignee || "All");
   }, [initialAssignee]);
 
   // Filters state
   const [serverStats, setServerStats] = useState<StaffTicketListResponse["stats"] | null>(null);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [status, setStatus] = useState("All");
+  const [status, setStatus] = useState(initialStatus || "All");
   const [priority, setPriority] = useState("All");
-  const [assignee, setAssignee] = useState("All");
+  const [assignee, setAssignee] = useState(initialAssignee || "All");
   const [categoryId, setCategoryId] = useState("All");
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");

@@ -15,7 +15,15 @@ interface Props {
 }
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
-const STATUSES = ["New", "In Progress", "Resolved"];
+const STATUSES = [
+  { label: "My Open Tickets", value: "open" },
+  { label: "New", value: "New" },
+  { label: "Open", value: "Open" },
+  { label: "In Progress", value: "In_Progress" },
+  { label: "Waiting for Requester", value: "Waiting_for_Requester" },
+  { label: "Resolved", value: "Resolved" },
+  { label: "Closed", value: "Closed" },
+];
 
 export default function MyTickets({ onNavigateToCreate, onSelectTicket, initialStatus }: Props) {
   const { requester } = useRequester();
@@ -40,9 +48,7 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket, initialS
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    if (initialStatus !== undefined) {
-      setStatus(initialStatus);
-    }
+    setStatus(initialStatus || "");
   }, [initialStatus]);
 
   // Load categories on mount
@@ -300,8 +306,8 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket, initialS
             >
               <option value="">All Statuses</option>
               {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </select>

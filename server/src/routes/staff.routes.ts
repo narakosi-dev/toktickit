@@ -55,7 +55,13 @@ staffRouter.get("/tickets", async (req: Request, res: Response) => {
     if (req.query.status && typeof req.query.status === "string" && req.query.status.trim()) {
       const s = req.query.status.trim();
       const normalizedStatus = s.replace(/\s+/g, "_");
-      where.status = { equals: normalizedStatus, mode: "insensitive" };
+      if (normalizedStatus.toLowerCase() === "active") {
+        where.status = { notIn: ["Closed", "Cancelled"] };
+      } else if (normalizedStatus.toLowerCase() === "pending_requester" || normalizedStatus.toLowerCase() === "waiting_for_requester") {
+        where.status = { in: ["Waiting_for_Requester", "Pending_Requester"], mode: "insensitive" };
+      } else {
+        where.status = { equals: normalizedStatus, mode: "insensitive" };
+      }
     }
 
     // 5. Priority filter (matches itPriority or fallback to priority)
