@@ -13,6 +13,7 @@ async function main() {
     console.warn("Notice: could not restart sequences:", err);
   }
 
+
   // 1. Seed Categories (4 standard categories)
   const categories = [
     "Account and Access",

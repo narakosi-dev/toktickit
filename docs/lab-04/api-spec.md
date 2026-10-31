@@ -176,7 +176,7 @@ Update an existing Action Taken record.
 ## 3. Ticket Status & Workflow Transition Endpoints
 
 ### 3.1. Update Ticket Status (with Concurrency Protection)
-Perform an authorized status transition according to the Status Transition Matrix with optimistic locking.
+Perform an authorized status transition according to the Status Transition Matrix with optimistic concurrency control.
 
 - **Method / Path:** `PATCH /api/tickets/:id/status`
 - **Access Control:** `IT_Staff`, `Administrator` only.
@@ -191,8 +191,8 @@ Perform an authorized status transition according to the Status Transition Matri
 }
 ```
 - **Field Constraints:**
-  - `status` (string, required): One of `New`, `Open`, `In_Progress`, `Waiting_for_Requester`, `Resolved`, `Closed`, `Reopened`, `Cancelled`. Must be a valid next status from the current status.
-  - `version` (integer, required): Expected current version of the ticket (for optimistic locking).
+  - `status` (string, required): One of `New`, `Open`, `In_Progress`, `Waiting_for_Requester`, `Resolved`, `Closed`, `Reopened`, `Cancelled`. Must be a valid next status from the current status per the Status Transition Matrix.
+  - `version` (integer, required): Expected current version of the ticket (for atomic optimistic concurrency control).
   - `comment` (string, optional): Optional comment to be logged into activity log.
 - **Success Response (200 OK):**
 ```json
@@ -202,26 +202,85 @@ Perform an authorized status transition according to the Status Transition Matri
   "status": "In_Progress",
   "previousStatus": "Open",
   "version": 2,
+  "resolvedIndicated": false,
   "updatedAt": "2026-10-29T10:30:00.000Z"
 }
 ```
-- **Error Responses:**
-  - `400 Bad Request`: Illegal status transition (e.g. jumping from `New` to `Resolved` directly), or invalid status name:
+- **Error Responses & Machine-Readable Codes:**
+  - `400 Bad Request` (Missing version):
     ```json
     {
-      "error": "Illegal status transition",
-      "details": ["Transition from New to Resolved is not permitted. Permitted: Open, Cancelled"]
+      "error": "version is required for optimistic concurrency control",
+      "code": "VERSION_REQUIRED",
+      "details": ["A valid integer 'version' must be supplied in the request body."]
     }
     ```
-  - `409 Conflict`: Stale update detected (the ticket was modified by another user concurrently):
+  - `400 Bad Request` (Invalid version):
+    ```json
+    {
+      "error": "version must be a valid integer",
+      "code": "INVALID_VERSION"
+    }
+    ```
+  - `400 Bad Request` (Missing status):
+    ```json
+    {
+      "error": "status is required",
+      "code": "STATUS_REQUIRED"
+    }
+    ```
+  - `400 Bad Request` (Illegal status transition):
+    ```json
+    {
+      "error": "Invalid status transition from 'New' to 'Resolved'",
+      "code": "INVALID_STATUS_TRANSITION",
+      "details": ["Permitted transitions from New: Open, Cancelled"]
+    }
+    ```
+  - `400 Bad Request` (Resolution prerequisite violation):
+    ```json
+    {
+      "error": "Cannot resolve ticket without at least one recorded Action Taken",
+      "code": "ACTION_TAKEN_REQUIRED",
+      "details": ["At least one technical action must be documented before resolving the ticket."]
+    }
+    ```
+  - `404 Not Found` (Non-existent ticket):
+    ```json
+    {
+      "error": "Ticket not found",
+      "code": "TICKET_NOT_FOUND"
+    }
+    ```
+  - `409 Conflict` (Optimistic Concurrency Control collision):
     ```json
     {
       "error": "Conflict: Ticket has been modified concurrently",
+      "code": "CONCURRENCY_CONFLICT",
       "currentVersion": 3,
       "currentStatus": "In_Progress",
-      "message": "The ticket was updated by another technician while you were viewing it. Please refresh and review the latest changes."
+      "message": "The ticket was updated by another technician while you were viewing it. Please refresh and review the latest changes.",
+      "updatedAt": "2026-10-31T10:00:00.000Z"
     }
     ```
+
+### 3.2. Scope of Ticket Versioning and OCC Design Intent
+The `Ticket.version` integer field is an atomic monotonic revision counter designed to eliminate lost updates without heavy pessimistic database locks.
+
+#### Architectural Rationale: Mandatory vs Increment-Only Operations
+- **Status Transitions (`PATCH /api/tickets/:id/status` and `PATCH /api/staff/tickets/:id/status`):**
+  - **Behavior:** Strictly **requires** `version` in the request body (HTTP 400 `VERSION_REQUIRED` if omitted or null).
+  - **Design Intent:** Changing a ticket's status advances the finite state machine (FSM) and enforces hard preconditions (such as requiring at least 1 Action Taken before transitioning to `Resolved` per AC-07, and freezing terminal states per BR-09). Allowing a technician to change status based on stale ticket data could lead to severe business errors (e.g., resolving a ticket that another technician just marked `Waiting_for_Requester` or `Cancelled`). Therefore, status transitions must pass an explicit OCC gate using atomic database compare-and-swap (`updateMany({ where: { id, version } })`), returning HTTP 409 `CONCURRENCY_CONFLICT` on mismatch.
+- **Triage Mutations (`assign` and `priority`):**
+  - **Behavior:** Bumps `version = version + 1` without strictly requiring `version` in the request payload upfront.
+  - **Design Intent:** Assigning a technician (`handleAssign`) and overriding IT priority (`handlePriority`) are rapid triage actions often performed in high-frequency batch or queue workflows. Mandating version on simple triage would introduce high friction if technicians reassign tickets rapidly. However, **every assignment and priority change must increment `version` in the database**. This ensures that any other technician currently viewing the ticket has their local cached version invalidated—protecting subsequent status transitions from executing against stale assumptions.
+- **Requester Resolution Indication (`POST /api/tickets/:id/resolve-indication`):**
+  - **Behavior:** Monotonically increments `version = version + 1` upon setting `resolvedIndicated = true`.
+  - **Design Intent:** Alerts technicians that the customer provided feedback while preserving the state machine integrity.
+
+#### Known Limitations & Concurrency Trade-offs
+- **Lost Updates on Triage Endpoints (`assign`, `priority`):**
+  Because triage mutations do not mandate `version` in the request body, two IT technicians updating the assignee or IT priority of the same ticket simultaneously will experience last-write-wins behavior, and lost updates can occur on those specific fields. The database increment ensures that any downstream status transitions performed with a stale cached version will still be rejected with `CONCURRENCY_CONFLICT` (HTTP 409).
 
 ---
 

@@ -39,6 +39,7 @@ const mockBaseTicket: api.StaffTicketDetailData = {
   priority: "High",
   itPriority: "High",
   status: "New",
+  version: 1,
   requesterId: 5,
   requester: { id: 5, name: "Alice Requester", email: "alice@example.com" },
   ownerId: null,
@@ -178,7 +179,7 @@ describe("StaffTicketDetail Component (Lab 3 — Issue 9)", () => {
     fireEvent.click(updateButton);
 
     await waitFor(() => {
-      expect(api.updateTicketStatus).toHaveBeenCalledWith("mock-jwt-staff-token", 101, "In_Progress");
+      expect(api.updateTicketStatus).toHaveBeenCalledWith("mock-jwt-staff-token", 101, "In_Progress", 1);
     });
   });
 
