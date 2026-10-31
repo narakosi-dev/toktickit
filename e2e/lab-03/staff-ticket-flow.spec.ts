@@ -203,6 +203,31 @@ test.describe("Sprint 3 (Lab 3) E2E: Staff Ticket Lifecycle Flow (Issue #35)", (
     // Verify prominent requester indication banner
     await expect(page.getByText(/Requester Indication: The requester indicated this issue appears resolved/i)).toBeVisible();
 
+    // Sprint 4 Resolution Invariant (AC-07): A ticket requires at least one Action Taken to resolve.
+    // Record action taken via API using the authenticated IT Staff session:
+    await page.evaluate(async (tNum) => {
+      const token = localStorage.getItem("toktickit_auth_token") || "";
+      const listRes = await fetch(`/api/staff/tickets?q=${encodeURIComponent(tNum)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const listData = await listRes.json();
+      const currentTicket = (listData.tickets || listData.items || []).find((t: any) => t.ticketNumber === tNum);
+      if (currentTicket) {
+        await fetch(`/api/tickets/${currentTicket.id}/actions-taken`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            description: "Inspected core gateway switch SW-02 and cleared flapping routing cache.",
+            result: "Packet drop rate returned to zero, VPN connection stabilized.",
+            followUpRequired: false,
+          }),
+        });
+      }
+    }, ticketNumber);
+
     // Transition to Resolved
     await page.selectOption("#staff-status-select", "Resolved");
     await page.getByRole("button", { name: /Update Status/i }).click();
