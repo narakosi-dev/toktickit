@@ -21,14 +21,14 @@ interface Props {
   onBack: () => void;
 }
 
-const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  New: ["Assigned", "Open", "In_Progress", "Cancelled"],
-  Open: ["In_Progress", "Pending_Requester", "Resolved", "Cancelled"],
-  Assigned: ["In_Progress", "Pending_Requester", "Resolved", "Cancelled"],
-  In_Progress: ["Pending_Requester", "Resolved", "Cancelled"],
+export const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
+  New: ["Open", "Cancelled"],
+  Open: ["In_Progress", "Waiting_for_Requester", "Resolved", "Cancelled"],
+  In_Progress: ["Waiting_for_Requester", "Resolved", "Open"],
+  Waiting_for_Requester: ["In_Progress", "Resolved", "Cancelled"],
   Pending_Requester: ["In_Progress", "Resolved", "Cancelled"],
-  Resolved: ["Closed", "In_Progress", "Reopened"],
-  Reopened: ["In_Progress", "Pending_Requester", "Resolved", "Cancelled"],
+  Resolved: ["Closed", "Reopened"],
+  Reopened: ["In_Progress", "Resolved", "Cancelled"],
   Closed: [],
   Cancelled: [],
 };
@@ -57,6 +57,7 @@ function formatStatusDisplay(status: string): string {
   switch (status) {
     case "In_Progress":
       return "In Progress";
+    case "Waiting_for_Requester":
     case "Pending_Requester":
       return "Waiting for Requester";
     default:
@@ -140,7 +141,21 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
   const [assigning, setAssigning] = useState(false);
   const [updatingPriority, setUpdatingPriority] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
   const [opSuccessMessage, setOpSuccessMessage] = useState("");
+
+  // Accessibility: Close Concurrency Conflict Modal on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isConflictModalOpen) {
+        setIsConflictModalOpen(false);
+      }
+    }
+    if (isConflictModalOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isConflictModalOpen]);
   const [opErrorMessage, setOpErrorMessage] = useState("");
 
   // Conversation input state
@@ -244,10 +259,9 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
       setOpSuccessMessage(`Status transitioned to ${formatStatusDisplay(selectedStatus)}.`);
       loadData();
     } catch (err: any) {
-      if (err.code === "CONCURRENCY_CONFLICT") {
-        setOpErrorMessage(
-          "Conflict: The ticket was modified by another technician while you were viewing it. Please refresh the page to view the latest status and try again."
-        );
+      if (err.status === 409 || err.code === "CONCURRENCY_CONFLICT") {
+        setIsConflictModalOpen(true);
+        setOpErrorMessage("");
       } else if (err.code === "ACTION_TAKEN_REQUIRED") {
         setOpErrorMessage(
           "Resolution Invariant Blocked: You cannot resolve a ticket without at least one recorded Action Taken."
@@ -399,7 +413,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
         >
           <span style={{ fontSize: "1.25rem" }}>✅</span>
           <div>
-            <strong>Requester Indication:</strong> The requester indicated this issue appears resolved. Please review and confirm formal closure.
+            <strong>Requester Feedback:</strong> The requester indicated this issue appears resolved. Please verify the Actions Taken and formally set the status to <strong>Resolved</strong> or follow up if further work is required.
           </div>
         </div>
       )}
@@ -845,6 +859,59 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Concurrency Conflict Dialog (HTTP 409 / BR-08 / AC-08) */}
+      {isConflictModalOpen && (
+        <div
+          id="concurrencyConflictModal"
+          className="modal show d-block"
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="concurrencyConflictModalTitle"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered" role="document">
+            <div className="modal-content border-0 shadow">
+              <div className="modal-header bg-danger text-white">
+                <h5 id="concurrencyConflictModalTitle" className="modal-title fw-bold">
+                  ⚠️ Ticket Updated Concurrently
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setIsConflictModalOpen(false)}
+                />
+              </div>
+              <div className="modal-body p-4">
+                <p className="mb-0">
+                  Another technician modified this ticket while you were working. To prevent overwriting their changes, please refresh to load the latest data.
+                </p>
+              </div>
+              <div className="modal-footer bg-light">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsConflictModalOpen(false)}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-zen-primary btn-sm"
+                  onClick={() => {
+                    setIsConflictModalOpen(false);
+                    loadData();
+                  }}
+                >
+                  🔄 Refresh Ticket
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
