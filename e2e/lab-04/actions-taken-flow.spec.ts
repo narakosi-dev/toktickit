@@ -52,13 +52,13 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await expect(page.getByText(/IT Service Desk — Sign In/i)).toBeVisible();
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Step 2: IT Staff 1 (Charlie Staff) logs in and adds Action Taken with follow-up
+    // Step 2: IT Staff 1 (Bob Smith) logs in and adds Action Taken with follow-up
     // ──────────────────────────────────────────────────────────────────────────
-    await page.fill("#login-email", "charlie.staff@toktick.local");
+    await page.fill("#login-email", "bob.smith@example.com");
     await page.fill("#login-password", "Password123!");
     await page.getByRole("button", { name: /Sign In/i }).click();
 
-    await expect(page.locator(".user-name")).toHaveText("Charlie Staff");
+    await expect(page.locator(".user-name")).toHaveText("Bob Smith");
     await expect(page.locator(".user-role-badge")).toHaveText("IT Staff");
 
     // Search for ticket in Staff Queue
@@ -100,29 +100,31 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await expect(page.getByText("CPU temperature dropped from 94C to 56C under benchmark load.")).toBeVisible();
     await expect(page.getByText(/Follow-Up Required/i)).toBeVisible();
     await expect(page.getByText("Verify core temperatures during morning compute run tomorrow.")).toBeVisible();
-    await expect(page.getByText("Charlie Staff")).toBeVisible();
+    await expect(page.getByText("Bob Smith")).toBeVisible();
 
     // Sign out Staff 1
     await page.getByRole("button", { name: /Sign Out/i }).click();
     await expect(page.getByText(/IT Service Desk — Sign In/i)).toBeVisible();
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Step 3: IT Staff 2 (Bob Smith) logs in and adds second Action Taken
+    // Step 3: Staff 2 (Alice Admin) logs in and adds second Action Taken
     // ──────────────────────────────────────────────────────────────────────────
-    await page.fill("#login-email", "bob.smith@example.com");
+    await page.fill("#login-email", "admin@toktick.local");
     await page.fill("#login-password", "Password123!");
     await page.getByRole("button", { name: /Sign In/i }).click();
 
-    await expect(page.locator(".user-name")).toHaveText("Bob Smith");
+    await expect(page.locator(".user-name")).toHaveText("Alice Admin");
 
+    // Admin lands on User Management; click Ticket Queue
+    await page.locator("header").getByRole("button", { name: /Ticket Queue/i }).click();
     await page.fill("input[placeholder*='Search ticket']", ticketNumber);
     await page.waitForTimeout(500);
 
-    const ticketRowBob = page.locator("tbody tr", { hasText: ticketNumber });
-    await expect(ticketRowBob).toBeVisible();
-    await ticketRowBob.getByRole("button", { name: /Open Detail/i }).click();
+    const ticketRowAdmin = page.locator("tbody tr", { hasText: ticketNumber });
+    await expect(ticketRowAdmin).toBeVisible();
+    await ticketRowAdmin.getByRole("button", { name: /Open Detail/i }).click();
 
-    // Bob records second action
+    // Alice records second action
     await page.getByTestId("add-action-taken-btn").click();
     await expect(page.getByRole("heading", { name: /Record Action Taken/i })).toBeVisible();
 
@@ -133,8 +135,8 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     // Verify BOTH actions persist in chronological order on the timeline
     await expect(page.getByText("Replaced thermal paste and cleaned heatsink fins with compressed air.")).toBeVisible();
     await expect(page.getByText("Updated motherboard UEFI to version 2.4.1 and calibrated fan curve.")).toBeVisible();
-    await expect(page.getByText("Charlie Staff")).toBeVisible();
     await expect(page.getByText("Bob Smith")).toBeVisible();
+    await expect(page.getByText("Alice Admin")).toBeVisible();
 
     // Capture staff actions timeline screenshot
     await page.screenshot({
@@ -156,7 +158,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await expect(page.locator(".user-name")).toHaveText("Nara Kosiyaporn");
 
     // Open My Tickets and select first available ticket with Actions Taken
-    await page.getByRole("button", { name: /My Tickets/i }).click();
+    await page.locator("header").getByRole("button", { name: /My Tickets/i }).click();
     await expect(page.locator("tbody tr").first()).toBeVisible();
     await page.locator("tbody tr").first().click();
 

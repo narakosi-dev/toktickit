@@ -47,8 +47,8 @@ test.describe("Sprint 4 (Lab 4) E2E: Ticket Resolution & Advisory Workflow (Issu
     await expect(page.getByText(/Ticket Created Successfully/i)).toBeVisible();
     const ticketNumber = (await page.getByTestId("created-ticket-number").innerText()).trim();
 
-    // Navigate to My Tickets and open newly created ticket
-    await page.getByRole("button", { name: /My Tickets/i }).click();
+    // Navigate to My Tickets via View My Tickets button on confirmation card
+    await page.getByRole("button", { name: "View My Tickets" }).click();
     const myTicketRow = page.locator("tbody tr", { hasText: ticketNumber });
     await expect(myTicketRow).toBeVisible();
     await myTicketRow.click();
@@ -74,11 +74,11 @@ test.describe("Sprint 4 (Lab 4) E2E: Ticket Resolution & Advisory Workflow (Issu
     // ──────────────────────────────────────────────────────────────────────────
     // Step 2: IT Staff observes advisory banner, fulfills resolution invariant, and marks Resolved
     // ──────────────────────────────────────────────────────────────────────────
-    await page.fill("#login-email", "charlie.staff@toktick.local");
+    await page.fill("#login-email", "bob.smith@example.com");
     await page.fill("#login-password", "Password123!");
     await page.getByRole("button", { name: /Sign In/i }).click();
 
-    await expect(page.locator(".user-name")).toHaveText("Charlie Staff");
+    await expect(page.locator(".user-name")).toHaveText("Bob Smith");
 
     // Locate ticket in queue
     await page.fill("input[placeholder*='Search ticket']", ticketNumber);
@@ -163,7 +163,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Ticket Resolution & Advisory Workflow (Issu
     await page.fill("#login-password", "Password123!");
     await page.getByRole("button", { name: /Sign In/i }).click();
 
-    await page.getByRole("button", { name: /My Tickets/i }).click();
+    await page.locator("header").getByRole("button", { name: /My Tickets/i }).click();
     const resolvedRow = page.locator("tbody tr", { hasText: ticketNumber });
     await expect(resolvedRow).toBeVisible();
     await expect(resolvedRow.locator(".badge-status-resolved")).toBeVisible();

@@ -25,11 +25,11 @@ test.describe("Sprint 4 (Lab 4) E2E: Role-Based Dashboards & Multi-Viewport Resp
     await page.goto("/");
     await expect(page.getByText(/IT Service Desk — Sign In/i)).toBeVisible();
 
-    await page.fill("#login-email", "charlie.staff@toktick.local");
+    await page.fill("#login-email", "bob.smith@example.com");
     await page.fill("#login-password", "Password123!");
     await page.getByRole("button", { name: /Sign In/i }).click();
 
-    await expect(page.locator(".user-name")).toHaveText("Charlie Staff");
+    await expect(page.locator(".user-name")).toHaveText("Bob Smith");
     await expect(page.locator(".user-role-badge")).toHaveText("IT Staff");
 
     // Click Dashboard in navbar
@@ -153,7 +153,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Role-Based Dashboards & Multi-Viewport Resp
 
     // Drill-down 1: Open tickets card (navigates with OPEN_GROUP)
     await page.getByTestId("metric-card-open").click();
-    await expect(page.getByRole("heading", { name: /My Support Tickets/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
     await expect(page.getByTestId("filter-status-select")).toHaveValue("OPEN_GROUP");
 
     // Return to dashboard
@@ -162,7 +162,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Role-Based Dashboards & Multi-Viewport Resp
 
     // Drill-down 2: Resolved tickets card (navigates with Resolved)
     await page.getByTestId("metric-card-resolved").click();
-    await expect(page.getByRole("heading", { name: /My Support Tickets/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My Tickets" })).toBeVisible();
     await expect(page.getByTestId("filter-status-select")).toHaveValue("Resolved");
   });
 });
