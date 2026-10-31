@@ -10,7 +10,9 @@ async function assertNoHorizontalOverflow(page: Page) {
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
 }
 
-test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", () => {
+test.describe.serial("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", () => {
+  let sharedTicketNumber = "";
+
   test.beforeAll(() => {
     fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
   });
@@ -46,6 +48,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await expect(page.getByText(/Ticket Created Successfully/i)).toBeVisible();
     const ticketNumber = (await page.getByTestId("created-ticket-number").innerText()).trim();
     expect(ticketNumber).toMatch(/^(TKT|TCK)-\d{4,8}-\d{4,6}$/);
+    sharedTicketNumber = ticketNumber;
 
     // Sign out Requester
     await page.getByRole("button", { name: /Sign Out/i }).click();
@@ -141,6 +144,9 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
     await expect(timelineAdmin.getByText("Bob Smith")).toBeVisible();
     await expect(timelineAdmin.getByText("Alice Admin")).toBeVisible();
 
+    // Scroll the Actions Taken section into view before screenshot
+    await actionsSectionAdmin.scrollIntoViewIfNeeded();
+
     // Capture staff actions timeline screenshot
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "01-actions-taken-timeline-staff.png"),
@@ -160,20 +166,46 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
 
     await expect(page.locator(".user-name")).toHaveText("Nara Kosiyaporn");
 
-    // Open My Tickets and select first available ticket with Actions Taken
+    // Open My Tickets and select the ticket created in ACT-01 with recorded Actions Taken
     await page.locator("header").getByRole("button", { name: /My Tickets/i }).click();
-    await expect(page.locator("tbody tr").first()).toBeVisible();
-    await page.locator("tbody tr").first().click();
+
+    if (sharedTicketNumber) {
+      await page.fill("[data-testid='search-tickets-input']", sharedTicketNumber);
+      await page.waitForTimeout(500);
+      const ticketRow = page.locator("tbody tr", { hasText: sharedTicketNumber });
+      await expect(ticketRow).toBeVisible();
+      await ticketRow.click();
+    } else {
+      await expect(page.locator("tbody tr").first()).toBeVisible();
+      await page.locator("tbody tr").first().click();
+    }
 
     // Verify ticket detail view and actions taken section
     await expect(page.getByTestId("ticket-detail-view")).toBeVisible();
+    if (sharedTicketNumber) {
+      await expect(page.getByRole("heading", { name: sharedTicketNumber })).toBeVisible();
+    }
+
     const actionsSection = page.getByTestId("actions-taken-section");
     await expect(actionsSection).toBeVisible();
+
+    // Assert that actions-taken-timeline contains the actions recorded in ACT-01
+    const timeline = page.getByTestId("actions-taken-timeline");
+    await expect(timeline).toBeVisible();
+    await expect(
+      timeline.getByText("Replaced thermal paste and cleaned heatsink fins with compressed air.")
+    ).toBeVisible();
+    await expect(
+      timeline.getByText("Updated motherboard UEFI to version 2.4.1 and calibrated fan curve.")
+    ).toBeVisible();
 
     // Read-only invariant checks (AC-04 / AC-13)
     await expect(page.getByText(/Read-Only View/i)).toBeVisible();
     await expect(page.getByTestId("add-action-taken-btn")).toHaveCount(0);
     await expect(page.locator("button:has-text('Edit')")).toHaveCount(0);
+
+    // Scroll the Actions Taken section into view before capturing screenshots
+    await actionsSection.scrollIntoViewIfNeeded();
 
     // Verify zero horizontal overflow on Desktop
     await assertNoHorizontalOverflow(page);
@@ -183,6 +215,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
 
     // 2. Tablet Viewport (768px)
     await page.setViewportSize({ width: 768, height: 1024 });
+    await actionsSection.scrollIntoViewIfNeeded();
     await assertNoHorizontalOverflow(page);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "03-actions-taken-requester-tablet.png"),
@@ -190,6 +223,7 @@ test.describe("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue #59)", 
 
     // 3. Mobile Viewport (375px)
     await page.setViewportSize({ width: 375, height: 812 });
+    await actionsSection.scrollIntoViewIfNeeded();
     await assertNoHorizontalOverflow(page);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "04-actions-taken-requester-mobile.png"),
