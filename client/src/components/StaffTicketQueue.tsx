@@ -11,6 +11,8 @@ import {
 
 interface Props {
   onSelectTicket?: (ticketId: number) => void;
+  initialStatus?: string;
+  initialAssignee?: string;
 }
 
 const STATUSES = [
@@ -67,7 +69,7 @@ function statusBadge(status: string) {
   }
 }
 
-export default function StaffTicketQueue({ onSelectTicket }: Props) {
+export default function StaffTicketQueue({ onSelectTicket, initialStatus, initialAssignee }: Props) {
   const { token, user } = useAuth();
 
   // Data state
@@ -81,6 +83,14 @@ export default function StaffTicketQueue({ onSelectTicket }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (initialStatus) setStatus(initialStatus);
+  }, [initialStatus]);
+
+  useEffect(() => {
+    if (initialAssignee) setAssignee(initialAssignee);
+  }, [initialAssignee]);
 
   // Filters state
   const [serverStats, setServerStats] = useState<StaffTicketListResponse["stats"] | null>(null);

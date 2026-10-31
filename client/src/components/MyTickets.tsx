@@ -11,12 +11,13 @@ import {
 interface Props {
   onNavigateToCreate?: () => void;
   onSelectTicket?: (ticketId: number) => void;
+  initialStatus?: string;
 }
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const STATUSES = ["New", "In Progress", "Resolved"];
 
-export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props) {
+export default function MyTickets({ onNavigateToCreate, onSelectTicket, initialStatus }: Props) {
   const { requester } = useRequester();
 
   // Data state
@@ -35,8 +36,14 @@ export default function MyTickets({ onNavigateToCreate, onSelectTicket }: Props)
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [priority, setPriority] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(initialStatus || "");
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    if (initialStatus !== undefined) {
+      setStatus(initialStatus);
+    }
+  }, [initialStatus]);
 
   // Load categories on mount
   useEffect(() => {

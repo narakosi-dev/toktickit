@@ -7,8 +7,12 @@ import TicketDetail from "./TicketDetail.js";
 import StaffTicketQueue from "./StaffTicketQueue.js";
 import StaffTicketDetail from "./StaffTicketDetail.js";
 import UserManagement from "./UserManagement.js";
+import StaffDashboard from "./StaffDashboard.js";
+import RequesterDashboard from "./RequesterDashboard.js";
 
 type Tab =
+  | "staff-dashboard"
+  | "requester-dashboard"
   | "my-tickets"
   | "create-ticket"
   | "system-status"
@@ -37,6 +41,8 @@ export default function AppShell() {
     isAdmin ? "user-management" : isStaff ? "staff-queue" : "my-tickets"
   );
   const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [queueFilter, setQueueFilter] = useState<{ status?: string; assignee?: string }>({});
+  const [myTicketsFilter, setMyTicketsFilter] = useState<{ status?: string }>({});
 
   // Lab 1 state preservation for system check
   const [systemState, setSystemState] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -74,6 +80,32 @@ export default function AppShell() {
           </div>
 
           <nav className="d-flex flex-wrap align-items-center gap-1">
+            {/* Role-based Dashboard */}
+            {isStaffOrAdmin ? (
+              <button
+                type="button"
+                className={`zen-nav-btn ${activeTab === "staff-dashboard" ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedTicketId(null);
+                  setActiveTab("staff-dashboard");
+                }}
+                data-testid="nav-dashboard"
+              >
+                📊 Dashboard
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={`zen-nav-btn ${activeTab === "requester-dashboard" ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedTicketId(null);
+                  setActiveTab("requester-dashboard");
+                }}
+                data-testid="nav-dashboard"
+              >
+                📊 Dashboard
+              </button>
+            )}
             {isAdmin && (
               <button
                 type="button"
@@ -183,9 +215,45 @@ export default function AppShell() {
         className="container py-4 flex-grow-1"
         style={{
           maxWidth:
-            activeTab === "staff-queue" || activeTab === "user-management" ? 1400 : 960,
+            activeTab === "staff-queue" || activeTab === "user-management" || activeTab === "staff-dashboard" || activeTab === "requester-dashboard" ? 1400 : 960,
         }}
       >
+                {activeTab === "staff-dashboard" && isStaffOrAdmin && (
+          <StaffDashboard
+            onNavigateToQueue={(filter) => {
+              setQueueFilter(filter || {});
+              setSelectedTicketId(null);
+              setActiveTab("staff-queue");
+            }}
+            onNavigateToCreate={() => {
+              setSelectedTicketId(null);
+              setActiveTab("create-ticket");
+            }}
+            onSelectTicket={(ticketId) => {
+              setSelectedTicketId(ticketId);
+              setActiveTab("ticket-detail");
+            }}
+          />
+        )}
+
+        {activeTab === "requester-dashboard" && (
+          <RequesterDashboard
+            onNavigateToMyTickets={(filter) => {
+              setMyTicketsFilter(filter || {});
+              setSelectedTicketId(null);
+              setActiveTab("my-tickets");
+            }}
+            onNavigateToCreate={() => {
+              setSelectedTicketId(null);
+              setActiveTab("create-ticket");
+            }}
+            onSelectTicket={(ticketId) => {
+              setSelectedTicketId(ticketId);
+              setActiveTab("ticket-detail");
+            }}
+          />
+        )}
+
         {activeTab === "user-management" && isAdmin && <UserManagement />}
 
         {activeTab === "staff-queue" && (
