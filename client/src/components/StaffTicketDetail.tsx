@@ -238,8 +238,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
     setOpSuccessMessage("");
     setOpErrorMessage("");
     try {
-      const currentVersion = ticket.version ?? 1;
-      await updateTicketStatus(token, ticket.id, selectedStatus, currentVersion);
+      await updateTicketStatus(token, ticket.id, selectedStatus, ticket.version);
       setOpSuccessMessage(`Status transitioned to ${formatStatusDisplay(selectedStatus)}.`);
       loadData();
     } catch (err: any) {

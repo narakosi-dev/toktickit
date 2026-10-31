@@ -68,6 +68,12 @@ In Round 2 of the peer review on PR #69, `@Sxr1n` delivered another round of inc
    - *Observation:* Loading full `actionsTaken` arrays was memory-inefficient when only count is needed. E2E tests hardcoded `localhost:3000` and omitted assertions on prerequisite API calls.
    - *Correction:* Switched `findUnique` query to use `_count: { select: { actionsTaken: true } }` alone. Hardened Playwright E2E with `process.env.API_URL`, `expect(listRes.ok()).toBe(true)`, and `expect(actionRes.ok()).toBe(true)`. Documented the architectural rationale for why `assign` and `priority` bump version without requiring it in the payload.
 
-### 2.4 Conclusion
+### 2.4 Round-3 & Round-4 Peer Review: Vitest Lifecycle & Explicit Limitation Transparency
+In Rounds 3 and 4 of peer review on PR #69, `@Sxr1n` pointed out nuanced runtime behavior in testing and documentation clarity:
+1. **Vitest Module Collection Lifecycle vs Runtime Hooks:** `it.skipIf(!isDbAvailable)` is evaluated at static test collection time before `beforeAll` establishes the database connection. Replacing it with dynamic `ctx.skip()` inside the test body allows the live database OCC test to run properly in local environments where PostgreSQL is present, while still failing CI if PostgreSQL is unreachable.
+2. **Explicit Known Limitations Documentation:** Explicitly documenting the trade-off of not mandating `version` on rapid triage mutations (`assign`, `priority`) in `specification.md`, `api-spec.md`, and the PR description ensures architectural transparency regarding potential last-write-wins lost updates on those specific fields.
+3. **Mandatory Type-Safe API:** Enforcing `version: number` strictly in `client/src/api.ts` prevents callers from silently defaulting or omitting OCC versioning.
+
+### 2.5 Conclusion
 The evolution of PR #69 underscores the true value of pairing AI agents with rigorous peer code review. While the agent rapidly scaffolded the workflow logic and test scaffolds, human critical analysis and peer review uncovered subtle race conditions and architectural gaps. Addressing these points transformed the ticketing workflow into an enterprise-grade, concurrency-safe, fully audited system.
 

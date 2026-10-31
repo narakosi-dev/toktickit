@@ -278,6 +278,10 @@ The `Ticket.version` integer field is an atomic monotonic revision counter desig
   - **Behavior:** Monotonically increments `version = version + 1` upon setting `resolvedIndicated = true`.
   - **Design Intent:** Alerts technicians that the customer provided feedback while preserving the state machine integrity.
 
+#### Known Limitations & Concurrency Trade-offs
+- **Lost Updates on Triage Endpoints (`assign`, `priority`):**
+  Because triage mutations do not mandate `version` in the request body, two IT technicians updating the assignee or IT priority of the same ticket simultaneously will experience last-write-wins behavior, and lost updates can occur on those specific fields. The database increment ensures that any downstream status transitions performed with a stale cached version will still be rejected with `CONCURRENCY_CONFLICT` (HTTP 409).
+
 ---
 
 ## 4. Role Dashboard Endpoints
