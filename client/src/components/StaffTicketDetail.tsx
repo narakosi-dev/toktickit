@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import ActionsTakenSection from "./ActionsTakenSection.js";
 import { useAuth } from "../context/AuthContext.js";
 import {
   fetchStaffTicketDetail,
@@ -129,6 +130,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
 
   // Tabs: "comments" (Public) vs "notes" (Internal)
   const [activeTab, setActiveTab] = useState<"comments" | "notes">("comments");
+  const [actionsCount, setActionsCount] = useState<number>(0);
 
   // Operational states
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
@@ -565,6 +567,11 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
                   </button>
                 </div>
               )}
+              {selectedStatus === "Resolved" && actionsCount === 0 && (
+                <div className="alert alert-warning py-1 px-2 small mt-2 mb-0" role="alert">
+                  ⚠️ <strong>Action Required:</strong> At least 1 Action Taken is required before marking this ticket as Resolved.
+                </div>
+              )}
             </div>
           </div>
 
@@ -612,6 +619,16 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
 
         {/* Right Column: Communication Center (Tabs for Public Comments vs Internal Notes) */}
         <div className="col-12 col-lg-7">
+          {/* Actions Taken Management (Lab 4 — Issue 6) */}
+          <ActionsTakenSection
+            ticketId={ticket.id}
+            token={token}
+            readOnly={false}
+            staffMembers={staffMembers}
+            currentUserId={user?.id}
+            onActionsChange={setActionsCount}
+          />
+
           <div className="zen-card p-4">
             {/* Tab Switcher */}
             <div className="d-flex border-bottom mb-4 gap-2">
