@@ -177,6 +177,45 @@ async function main() {
       }
       break;
     }
+    case 'get-reviews': {
+      const prNumber = process.argv[3];
+      const res = await githubRequest('GET', `/pulls/${prNumber}/reviews`);
+      if (Array.isArray(res.data)) {
+        console.log(`Reviews for PR #${prNumber} (${res.data.length}):`);
+        res.data.forEach((r) => {
+          console.log(`- Review by @${r.user?.login}: ${r.state} (${r.submitted_at})`);
+          if (r.body) console.log(`  Body: ${r.body}`);
+        });
+      } else {
+        console.log(JSON.stringify(res.data, null, 2));
+      }
+      break;
+    }
+    case 'get-comments': {
+      const prNumber = process.argv[3];
+      const res = await githubRequest('GET', `/issues/${prNumber}/comments`);
+      if (Array.isArray(res.data)) {
+        console.log(`Comments for #${prNumber} (${res.data.length}):`);
+        res.data.forEach((c) => {
+          console.log(`- @${c.user?.login} at ${c.created_at}:`);
+          console.log(`  ${c.body}`);
+        });
+      } else {
+        console.log(JSON.stringify(res.data, null, 2));
+      }
+      break;
+    }
+    case 'check-ci': {
+      const res = await githubRequest('GET', '/actions/runs?per_page=5');
+      if (res.data?.workflow_runs) {
+        res.data.workflow_runs.forEach((r) => {
+          console.log(`Run #${r.id}: ${r.name} [${r.head_branch}] status: ${r.status}, conclusion: ${r.conclusion} (${r.html_url})`);
+        });
+      } else {
+        console.log(JSON.stringify(res.data, null, 2));
+      }
+      break;
+    }
     case 'comment': {
       const issueOrPrNumber = process.argv[3];
       const bodyOrFile = process.argv[4];

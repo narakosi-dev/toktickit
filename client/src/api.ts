@@ -532,6 +532,7 @@ export async function updateTicketStatus(
     const errorBody = await res.json().catch(() => ({}));
     const err: any = new Error(errorBody.error || "Failed to update ticket status");
     err.code = errorBody.code;
+    err.status = res.status;
     err.currentVersion = errorBody.currentVersion;
     err.currentStatus = errorBody.currentStatus;
     throw err;
