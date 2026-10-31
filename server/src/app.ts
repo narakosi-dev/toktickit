@@ -70,6 +70,7 @@ import { commentsRouter } from "./routes/comments.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { actionsRouter } from "./routes/actions.routes.js";
 import { workflowRouter } from "./routes/workflow.routes.js";
+import { dashboardRouter } from "./routes/dashboard.routes.js";
 import { authenticateToken, requirePasswordChanged, verifyToken } from "./auth.js";
 
 export const app = express();
@@ -86,6 +87,7 @@ app.use("/api/tickets", commentsRouter);
 app.use("/api/tickets", actionsRouter);
 app.use("/api/tickets", workflowRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1: Health check
