@@ -3,6 +3,7 @@ import request from "supertest";
 import { app } from "../../src/app.js";
 import { signToken } from "../../src/auth.js";
 import { setPrisma } from "../../src/prisma.js";
+import { VALID_STATUS_TRANSITIONS } from "../../src/routes/workflow.routes.js";
 
 describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (ticket-workflow.api.test.ts)", () => {
   let requesterToken: string;
@@ -343,6 +344,33 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
       const successRes = res1.status === 200 ? res1 : res2;
       expect(successRes.body.version).toBe(3);
     });
+
+    it("legacy endpoint PATCH /api/staff/tickets/:id/status strictly enforces OCC (400 VERSION_REQUIRED, 409 CONCURRENCY_CONFLICT, 200 on match)", async () => {
+      // 1. Missing version returns 400
+      const resNoVer = await request(app)
+        .patch("/api/staff/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Waiting_for_Requester" });
+      expect(resNoVer.status).toBe(400);
+      expect(resNoVer.body.code).toBe("VERSION_REQUIRED");
+
+      // 2. Stale version returns 409
+      const resStale = await request(app)
+        .patch("/api/staff/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Waiting_for_Requester", version: 1 });
+      expect(resStale.status).toBe(409);
+      expect(resStale.body.code).toBe("CONCURRENCY_CONFLICT");
+
+      // 3. Matching version succeeds with 200 and increments version
+      const resOk = await request(app)
+        .patch("/api/staff/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Waiting_for_Requester", version: 2 });
+      expect(resOk.status).toBe(200);
+      expect(resOk.body.status).toBe("Waiting_for_Requester");
+      expect(resOk.body.version).toBe(3);
+    });
   });
 
   // ==========================================================================
@@ -403,6 +431,86 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
       expect(res.body.version).toBe(3);
       expect(mockLogs).toHaveLength(1);
       expect(mockLogs[0].details).toContain("User reports symptom resurfaced");
+    });
+
+    it("allows valid transition from In_Progress to Open per BR-06", async () => {
+      const res = await request(app)
+        .patch("/api/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Open", version: 2 });
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe("Open");
+      expect(res.body.version).toBe(3);
+    });
+
+    it("rejects transition from In_Progress to Cancelled per BR-06", async () => {
+      const res = await request(app)
+        .patch("/api/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Cancelled", version: 2 });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("INVALID_STATUS_TRANSITION");
+    });
+
+    it("rejects transition from Resolved directly to In_Progress per BR-06 (must go to Reopened)", async () => {
+      const res = await request(app)
+        .patch("/api/tickets/105/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "In_Progress", version: 2 });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("INVALID_STATUS_TRANSITION");
+    });
+  });
+
+  // ==========================================================================
+  // Section 3.1: Exhaustive 64-Pair Table-Driven Conformance (BR-06)
+  // ==========================================================================
+  describe("Exhaustive 64-Pair Table-Driven Matrix Conformance (BR-06)", () => {
+    const ALL_8_STATUSES = [
+      "New",
+      "Open",
+      "In_Progress",
+      "Waiting_for_Requester",
+      "Resolved",
+      "Reopened",
+      "Closed",
+      "Cancelled",
+    ] as const;
+
+    ALL_8_STATUSES.forEach((fromStatus) => {
+      ALL_8_STATUSES.forEach((toStatus) => {
+        const isPermitted = VALID_STATUS_TRANSITIONS[fromStatus]?.includes(toStatus) ?? false;
+        if (isPermitted) {
+          it(`allows valid transition: ${fromStatus} ➔ ${toStatus}`, async () => {
+            const t = mockTickets.find((x) => x.id === 101);
+            t.status = fromStatus;
+            t.version = 10;
+
+            const res = await request(app)
+              .patch("/api/tickets/101/status")
+              .set("Authorization", `Bearer ${staffToken}`)
+              .send({ status: toStatus, version: 10 });
+
+            expect(res.status).toBe(200);
+            expect(res.body.status).toBe(toStatus);
+            expect(res.body.version).toBe(11);
+          });
+        } else {
+          it(`rejects invalid transition: ${fromStatus} ➔ ${toStatus} with HTTP 400`, async () => {
+            const t = mockTickets.find((x) => x.id === 101);
+            t.status = fromStatus;
+            t.version = 10;
+
+            const res = await request(app)
+              .patch("/api/tickets/101/status")
+              .set("Authorization", `Bearer ${staffToken}`)
+              .send({ status: toStatus, version: 10 });
+
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("INVALID_STATUS_TRANSITION");
+          });
+        }
+      });
     });
   });
 

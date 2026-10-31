@@ -49,5 +49,25 @@ Pair programming with the agent dramatically accelerated the implementation of c
    - *Observation:* Initial test suites mocked `ticket.update` without inspecting `where.version`, making it impossible to verify concurrency collisions in automated unit testing.
    - *Correction:* I updated the mock to simulate true atomic query execution and added a `Promise.all` race-condition test demonstrating that when two technicians attempt concurrent updates with identical versions, exactly one succeeds (HTTP 200) and one receives HTTP 409 Conflict (`CONCURRENCY_CONFLICT`).
 
-### 2.3 Conclusion
+### 2.3 Round-2 Peer Review: Mathematical FSM Conformance & Production Hardening
+In Round 2 of the peer review on PR #69, `@Sxr1n` delivered another round of incisive architectural critiques that refined the implementation to complete industrial standard:
+
+1. **Cell-by-Cell BR-06 Matrix Conformance & Exhaustive Table-Driven Testing:**
+   - *Observation:* The workflow matrix still retained legacy aliases (`Assigned`, `Pending_Requester`) and permitted transitions outside BR-06 (e.g. `New ➔ In_Progress`, `Resolved ➔ In_Progress`, `In_Progress ➔ Cancelled`).
+   - *Correction:* Aligned `VALID_STATUS_TRANSITIONS` to match BR-06 cell by cell across the 8 canonical statuses. Mapped legacy aliases (`pending_requester` $\rightarrow$ `Waiting_for_Requester`, `assigned` $\rightarrow$ `Open`) on input in `normalizeStatus` and added a database migration script. Added an exhaustive 64-pair table-driven test suite in `ticket-workflow.api.test.ts` verifying every possible state pair.
+
+2. **Complete Route Delegation & Removal of Mock Fallback Branches:**
+   - *Observation:* Having a separate `handleStatus` implementation in `staff.routes.ts` maintained a maintenance burden and potential bypass, while branches like `else executeTx(prisma)` and `hasActionsSupport && actionsCount === 0` created the risk of failing open.
+   - *Correction:* Fully removed the duplicate `handleStatus` and delegated `staffRouter.patch("/tickets/:id/status")` directly to `handleUpdateTicketStatus`. Cleaned production code by strictly requiring `prisma.$transaction` and relying directly on `ticket._count.actionsTaken`.
+
+3. **Empirical PostgreSQL Concurrency Integration Test:**
+   - *Observation:* Mock-based single-threaded tests cannot definitively prove PostgreSQL row-level behavior or concurrency serialization.
+   - *Correction:* Added `ticket-workflow.db.test.ts` that executes concurrent requests via `Promise.all` against live PostgreSQL, asserting that the database-level atomic CAS succeeds for exactly 1 request and returns HTTP 409 Conflict for the second.
+
+4. **Payload Efficiency & E2E Assertion Hardening:**
+   - *Observation:* Loading full `actionsTaken` arrays was memory-inefficient when only count is needed. E2E tests hardcoded `localhost:3000` and omitted assertions on prerequisite API calls.
+   - *Correction:* Switched `findUnique` query to use `_count: { select: { actionsTaken: true } }` alone. Hardened Playwright E2E with `process.env.API_URL`, `expect(listRes.ok()).toBe(true)`, and `expect(actionRes.ok()).toBe(true)`. Documented the architectural rationale for why `assign` and `priority` bump version without requiring it in the payload.
+
+### 2.4 Conclusion
 The evolution of PR #69 underscores the true value of pairing AI agents with rigorous peer code review. While the agent rapidly scaffolded the workflow logic and test scaffolds, human critical analysis and peer review uncovered subtle race conditions and architectural gaps. Addressing these points transformed the ticketing workflow into an enterprise-grade, concurrency-safe, fully audited system.
+

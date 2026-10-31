@@ -210,11 +210,10 @@ model Ticket {
    - *Justification:* Storing Actions Taken as a dedicated strongly-typed relational entity provides strict foreign-key integrity between `Ticket` and `User` (`performedById`), explicit SQL-level validation (e.g. non-null constraints on description and result), and indexed lookups (`@@index([ticketId])`). In contrast, storing actions in a loose JSON array or generic audit log would prevent database-level integrity, make join queries inefficient, and blur the distinction between system audit trails and formal technical actions.
 2. **Decision 2: Optimistic Concurrency Control via Version Counter & Mutating Scope:**
    - *Justification:* In an enterprise service desk, multiple IT technicians or automated tools may view and update the same Ticket concurrently. Implementing optimistic locking through an integer `version` field (incremented on each write) eliminates the risk of silent overwrite ("lost updates") without resorting to heavy pessimistic database row locks, which degrade concurrency and introduce deadlocks in a stateless HTTP REST architecture.
-   - *Scope of Version Counter:* To prevent lost updates across all dimensions of ticket state, `version` is monotonically incremented on:
-     1. Status transitions (`PATCH /api/tickets/:id/status` and `PATCH /api/staff/tickets/:id/status`).
-     2. Assignee modification (`PATCH /api/staff/tickets/:id/assign`).
-     3. IT priority override (`PATCH /api/staff/tickets/:id/priority`).
-     4. Requester resolution indication (`POST /api/tickets/:id/resolve-indication`).
+   - *Scope of Version Counter & Design Intent:*
+     - **Status Transitions (`PATCH /api/tickets/:id/status` and `PATCH /api/staff/tickets/:id/status`):** Strictly **requires** `version` in the request body (HTTP 400 `VERSION_REQUIRED` if missing). Status transitions advance the finite state machine (FSM) and enforce hard gates (e.g. resolution requires documented actions taken; terminal states are immutable). Stale updates here cause workflow corruption; thus, explicit version checking with atomic CAS (`updateMany({ where: { id, version } })`) is mandatory.
+     - **Triage Mutations (`assign` and `priority`):** Automatically increment `version: { increment: 1 }` in the database without mandating `version` in the payload. Triage is a rapid operational task; requiring version could block quick reassignments, but incrementing `version` in the DB immediately invalidates stale views held by other technicians, protecting downstream status transitions from race conditions.
+     - **Requester Resolution Indication (`POST /api/tickets/:id/resolve-indication`):** Increments `version: { increment: 1 }` upon setting `resolvedIndicated = true`.
    - *Standard Machine-Readable Error Codes:* `VERSION_REQUIRED`, `INVALID_VERSION`, `STATUS_REQUIRED`, `INVALID_STATUS_TRANSITION`, `ACTION_TAKEN_REQUIRED`, `CONCURRENCY_CONFLICT`, `TICKET_NOT_FOUND`.
 
 ### 7.4. Migration & Backfill Strategy (Handout Section 5.2)

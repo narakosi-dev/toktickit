@@ -234,7 +234,7 @@ Perform an authorized status transition according to the Status Transition Matri
     {
       "error": "Invalid status transition from 'New' to 'Resolved'",
       "code": "INVALID_STATUS_TRANSITION",
-      "details": ["Permitted transitions from New: Open, In_Progress, Cancelled"]
+      "details": ["Permitted transitions from New: Open, Cancelled"]
     }
     ```
   - `400 Bad Request` (Resolution prerequisite violation):
@@ -264,12 +264,19 @@ Perform an authorized status transition according to the Status Transition Matri
     }
     ```
 
-### 3.2. Scope of Ticket Versioning (Optimistic Concurrency Control)
-The `Ticket.version` integer field is an atomic monotonic revision counter. To guarantee comprehensive race condition prevention across technicians, `version` is incremented (`version: { increment: 1 }`) on every state-mutating operation:
-1. **Status Transitions:** `PATCH /api/tickets/:id/status` and legacy `PATCH /api/staff/tickets/:id/status`.
-2. **Technician Assignment:** `PATCH /api/staff/tickets/:id/assign` (assigning or unassigning an IT staff member).
-3. **IT Priority Override:** `PATCH /api/staff/tickets/:id/priority` (setting Low, Medium, High, or Critical priority).
-4. **Requester Resolution Indication:** `POST /api/tickets/:id/resolve-indication` (requester indicating problem is resolved).
+### 3.2. Scope of Ticket Versioning and OCC Design Intent
+The `Ticket.version` integer field is an atomic monotonic revision counter designed to eliminate lost updates without heavy pessimistic database locks.
+
+#### Architectural Rationale: Mandatory vs Increment-Only Operations
+- **Status Transitions (`PATCH /api/tickets/:id/status` and `PATCH /api/staff/tickets/:id/status`):**
+  - **Behavior:** Strictly **requires** `version` in the request body (HTTP 400 `VERSION_REQUIRED` if omitted or null).
+  - **Design Intent:** Changing a ticket's status advances the finite state machine (FSM) and enforces hard preconditions (such as requiring at least 1 Action Taken before transitioning to `Resolved` per AC-07, and freezing terminal states per BR-09). Allowing a technician to change status based on stale ticket data could lead to severe business errors (e.g., resolving a ticket that another technician just marked `Waiting_for_Requester` or `Cancelled`). Therefore, status transitions must pass an explicit OCC gate using atomic database compare-and-swap (`updateMany({ where: { id, version } })`), returning HTTP 409 `CONCURRENCY_CONFLICT` on mismatch.
+- **Triage Mutations (`assign` and `priority`):**
+  - **Behavior:** Bumps `version = version + 1` without strictly requiring `version` in the request payload upfront.
+  - **Design Intent:** Assigning a technician (`handleAssign`) and overriding IT priority (`handlePriority`) are rapid triage actions often performed in high-frequency batch or queue workflows. Mandating version on simple triage would introduce high friction if technicians reassign tickets rapidly. However, **every assignment and priority change must increment `version` in the database**. This ensures that any other technician currently viewing the ticket has their local cached version invalidated—protecting subsequent status transitions from executing against stale assumptions.
+- **Requester Resolution Indication (`POST /api/tickets/:id/resolve-indication`):**
+  - **Behavior:** Monotonically increments `version = version + 1` upon setting `resolvedIndicated = true`.
+  - **Design Intent:** Alerts technicians that the customer provided feedback while preserving the state machine integrity.
 
 ---
 

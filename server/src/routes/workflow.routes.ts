@@ -5,17 +5,23 @@ import { authenticateToken, requirePasswordChanged, requireRole } from "../auth.
 export const workflowRouter = Router();
 
 /**
- * Normalizes input status string across variations, synonyms, and casing
- * into authoritative schema-conforming status names.
+ * Normalizes input status string across variations, synonyms, and legacy aliases
+ * into the 8 authoritative schema-conforming status names (BR-06).
  */
 export function normalizeStatus(st: string): string {
   const s = st.trim().toLowerCase();
   if (s === "new") return "New";
   if (s === "open") return "Open";
-  if (s === "assigned") return "Assigned";
+  if (s === "assigned") return "Open"; // Legacy alias mapped to Open
   if (s === "in_progress" || s === "in progress") return "In_Progress";
-  if (s === "pending_requester" || s === "pending requester") return "Pending_Requester";
-  if (s === "waiting for requester" || s === "waiting_for_requester") return "Waiting_for_Requester";
+  if (
+    s === "pending_requester" ||
+    s === "pending requester" ||
+    s === "waiting for requester" ||
+    s === "waiting_for_requester"
+  ) {
+    return "Waiting_for_Requester";
+  }
   if (s === "resolved") return "Resolved";
   if (s === "closed") return "Closed";
   if (s === "reopened") return "Reopened";
@@ -25,24 +31,22 @@ export function normalizeStatus(st: string): string {
 
 /**
  * Permitted Status Transition Matrix (Finite State Machine)
- * Enforces authoritative lifecycle transitions and freezes terminal states.
+ * Strictly matches BR-06 in docs/lab-04/specification.md cell by cell across 8 statuses.
  */
 export const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  New: ["Assigned", "Open", "In_Progress", "Cancelled"],
-  Open: ["In_Progress", "Waiting_for_Requester", "Pending_Requester", "Resolved", "Cancelled"],
-  Assigned: ["In_Progress", "Waiting_for_Requester", "Pending_Requester", "Resolved", "Cancelled"],
-  In_Progress: ["Waiting_for_Requester", "Pending_Requester", "Resolved", "Cancelled"],
+  New: ["Open", "Cancelled"],
+  Open: ["In_Progress", "Waiting_for_Requester", "Resolved", "Cancelled"],
+  In_Progress: ["Waiting_for_Requester", "Resolved", "Open"],
   Waiting_for_Requester: ["In_Progress", "Resolved", "Cancelled"],
-  Pending_Requester: ["In_Progress", "Resolved", "Cancelled"], // Legacy alias support
-  Resolved: ["Closed", "In_Progress", "Reopened"],
-  Reopened: ["In_Progress", "Waiting_for_Requester", "Pending_Requester", "Resolved", "Cancelled"],
+  Resolved: ["Closed", "Reopened"],
+  Reopened: ["In_Progress", "Resolved", "Cancelled"],
   Closed: [], // Closed is terminal per spec
   Cancelled: [], // Cancelled is terminal per spec
 };
 
 /**
  * Authoritative Status Transition Handler with Optimistic Concurrency Control (OCC)
- * and Resolution Prerequisites (AC-06, AC-07, AC-08).
+ * and Resolution Prerequisites (AC-06, AC-07, AC-08, BR-06).
  *
  * Implements atomic transactional execution:
  * 1. Requires explicit version parameter (HTTP 400 if missing or invalid).
@@ -92,14 +96,19 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
 
     // Execute within atomic transaction
     const executeTx = async (tx: any) => {
-      // 1. Fetch ticket to verify existence and check action count
+      // 1. Fetch ticket to verify existence and check action count using _count alone
       const ticket = await tx.ticket.findUnique({
         where: { id: ticketId },
-        include: {
+        select: {
+          id: true,
+          ticketNumber: true,
+          status: true,
+          version: true,
+          resolvedIndicated: true,
+          updatedAt: true,
           _count: {
             select: { actionsTaken: true },
           },
-          actionsTaken: true,
         },
       });
 
@@ -116,7 +125,7 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
       const currentNormalized = normalizeStatus(ticket.status);
       const targetNormalized = currentNormalizedTarget;
 
-      // 2. Validate Status Transition Matrix
+      // 2. Validate Status Transition Matrix against BR-06
       const allowedNext = VALID_STATUS_TRANSITIONS[currentNormalized] || [];
       if (currentNormalized === targetNormalized || !allowedNext.includes(targetNormalized)) {
         return {
@@ -131,15 +140,7 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
 
       // 3. Resolution Invariant Gate (AC-07): Must have at least 1 Action Taken to Resolve
       if (targetNormalized === "Resolved") {
-        let actionsCount = 0;
-        if (ticket._count && typeof ticket._count.actionsTaken === "number") {
-          actionsCount = ticket._count.actionsTaken;
-        } else if (Array.isArray(ticket.actionsTaken)) {
-          actionsCount = ticket.actionsTaken.length;
-        } else if (tx.actionTaken && typeof tx.actionTaken.count === "function") {
-          actionsCount = await tx.actionTaken.count({ where: { ticketId } });
-        }
-
+        const actionsCount = ticket._count?.actionsTaken ?? 0;
         if (actionsCount === 0) {
           return {
             status: 400,
@@ -209,14 +210,8 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
       };
     };
 
-    // If running in environment with prisma.$transaction support
-    let outcome: { status: number; body: any };
-    if (typeof prisma.$transaction === "function") {
-      outcome = await prisma.$transaction(executeTx);
-    } else {
-      outcome = await executeTx(prisma);
-    }
-
+    // Strictly execute within atomic database transaction
+    const outcome = await prisma.$transaction(executeTx);
     return res.status(outcome.status).json(outcome.body);
   } catch (err) {
     console.error("handleUpdateTicketStatus error:", err);

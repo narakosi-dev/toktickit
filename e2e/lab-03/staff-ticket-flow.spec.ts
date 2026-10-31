@@ -205,25 +205,28 @@ test.describe("Sprint 3 (Lab 3) E2E: Staff Ticket Lifecycle Flow (Issue #35)", (
 
     // Sprint 4 Resolution Invariant (AC-07): A ticket requires at least one Action Taken to resolve.
     // Record action taken via API using the authenticated IT Staff session:
+    const apiBase = process.env.API_URL || "http://localhost:3000";
     const token = await page.evaluate(() => localStorage.getItem("toktickit_auth_token") || "");
-    const listRes = await page.request.get(`http://localhost:3000/api/staff/tickets?q=${encodeURIComponent(ticketNumber)}`, {
+    const listRes = await page.request.get(`${apiBase}/api/staff/tickets?q=${encodeURIComponent(ticketNumber)}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    expect(listRes.ok()).toBe(true);
     const listData = await listRes.json();
     const currentTicket = (listData.tickets || listData.items || []).find((t: any) => t.ticketNumber === ticketNumber);
-    if (currentTicket) {
-      await page.request.post(`http://localhost:3000/api/tickets/${currentTicket.id}/actions-taken`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        data: {
-          description: "Inspected core gateway switch SW-02 and cleared flapping routing cache.",
-          result: "Packet drop rate returned to zero, VPN connection stabilized.",
-          followUpRequired: false,
-        },
-      });
-    }
+    expect(currentTicket).toBeDefined();
+
+    const actionRes = await page.request.post(`${apiBase}/api/tickets/${currentTicket.id}/actions-taken`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      data: {
+        description: "Inspected core gateway switch SW-02 and cleared flapping routing cache.",
+        result: "Packet drop rate returned to zero, VPN connection stabilized.",
+        followUpRequired: false,
+      },
+    });
+    expect(actionRes.ok()).toBe(true);
 
     // Transition to Resolved
     await page.selectOption("#staff-status-select", "Resolved");

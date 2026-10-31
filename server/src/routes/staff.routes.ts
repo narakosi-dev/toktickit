@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getPrisma } from "../prisma.js";
 import { authenticateToken, requirePasswordChanged, requireRole } from "../auth.js";
-import { normalizeStatus, VALID_STATUS_TRANSITIONS } from "./workflow.routes.js";
+import { handleUpdateTicketStatus, normalizeStatus, VALID_STATUS_TRANSITIONS } from "./workflow.routes.js";
 import {
   handleCreateInternalNote,
   handleGetInternalNotes,
@@ -507,122 +507,10 @@ staffRouter.post("/tickets/:id/priority", handlePriority);
 
 /**
  * PATCH & POST /api/staff/tickets/:id/status
- * Enforce Status Transition Matrix (BR-08 / BR-13)
+ * Delegates directly to authoritative handleUpdateTicketStatus with OCC and resolution invariant checks.
  */
-const handleStatus = async (req: Request, res: Response) => {
-  try {
-    const prisma = getPrisma();
-    const ticketId = parseInt(req.params.id, 10);
-    if (isNaN(ticketId) || ticketId <= 0) {
-      return res.status(404).json({ error: "Invalid ticket ID", code: "INVALID_TICKET_ID" });
-    }
-
-    const ticket = await prisma.ticket.findUnique({
-      where: { id: ticketId },
-      include: {
-        actionsTaken: true,
-        _count: { select: { actionsTaken: true } },
-      },
-    });
-    if (!ticket) {
-      return res.status(404).json({ error: "Ticket not found", code: "TICKET_NOT_FOUND" });
-    }
-
-    const rawStatus = req.body.status;
-    if (!rawStatus || typeof rawStatus !== "string" || !rawStatus.trim()) {
-      return res.status(400).json({ error: "status is required", code: "STATUS_REQUIRED" });
-    }
-
-    // If version is provided, validate OCC
-    if (req.body.version !== undefined && req.body.version !== null) {
-      const expectedVersion = parseInt(req.body.version, 10);
-      if (isNaN(expectedVersion)) {
-        return res.status(400).json({
-          error: "version must be a valid integer",
-          code: "INVALID_VERSION",
-        });
-      }
-      if (ticket.version !== undefined && ticket.version !== expectedVersion) {
-        return res.status(409).json({
-          error: "Conflict: Ticket has been modified concurrently",
-          code: "CONCURRENCY_CONFLICT",
-          currentVersion: ticket.version,
-          currentStatus: ticket.status,
-          message: "The ticket was updated by another technician while you were viewing it. Please refresh and review the latest changes.",
-        });
-      }
-    }
-
-    const currentNormalized = normalizeStatus(ticket.status);
-    const targetNormalized = normalizeStatus(rawStatus);
-
-    const allowedNext = VALID_STATUS_TRANSITIONS[currentNormalized] || [];
-    if (currentNormalized === targetNormalized || !allowedNext.includes(targetNormalized)) {
-      return res.status(400).json({
-        error: `Invalid status transition from '${ticket.status}' to '${targetNormalized}'`,
-        code: "INVALID_STATUS_TRANSITION",
-        details: [`Permitted transitions from ${ticket.status}: ${allowedNext.join(", ") || "None (Terminal state)"}`],
-      });
-    }
-
-    // Resolution Invariant Gate (AC-07): Must have at least 1 Action Taken to Resolve
-    if (targetNormalized === "Resolved") {
-      let actionsCount = 0;
-      let hasActionsSupport = false;
-      if (ticket._count && typeof ticket._count.actionsTaken === "number") {
-        actionsCount = ticket._count.actionsTaken;
-        hasActionsSupport = true;
-      } else if (Array.isArray(ticket.actionsTaken)) {
-        actionsCount = ticket.actionsTaken.length;
-        hasActionsSupport = true;
-      } else if (prisma.actionTaken && typeof prisma.actionTaken.count === "function") {
-        actionsCount = await prisma.actionTaken.count({ where: { ticketId } });
-        hasActionsSupport = true;
-      }
-
-      if (hasActionsSupport && actionsCount === 0) {
-        return res.status(400).json({
-          error: "Cannot resolve ticket without at least one recorded Action Taken",
-          code: "ACTION_TAKEN_REQUIRED",
-          details: ["At least one technical action must be documented before resolving the ticket."],
-        });
-      }
-    }
-
-    const updated = await prisma.ticket.update({
-      where: { id: ticketId },
-      data: {
-        status: targetNormalized,
-        version: { increment: 1 },
-      },
-    });
-
-    try {
-      await prisma.activityLog.create({
-        data: {
-          ticketId,
-          userId: req.user!.id,
-          action: "STATUS_TRANSITION",
-          details: `Status transitioned from ${ticket.status} to ${targetNormalized}`,
-        },
-      });
-    } catch (err) {
-      console.error("Failed to log status transition activity:", err);
-    }
-
-    res.status(200).json({
-      id: updated.id,
-      status: updated.status,
-      ticket: updated,
-    });
-  } catch (error) {
-    console.error("Failed to update ticket status:", error);
-    res.status(500).json({ error: "Internal Server Error", code: "INTERNAL_ERROR" });
-  }
-};
-
-staffRouter.patch("/tickets/:id/status", handleStatus);
-staffRouter.post("/tickets/:id/status", handleStatus);
+staffRouter.patch("/tickets/:id/status", handleUpdateTicketStatus);
+staffRouter.post("/tickets/:id/status", handleUpdateTicketStatus);
 
 /**
  * Confidential Internal Notes Endpoints

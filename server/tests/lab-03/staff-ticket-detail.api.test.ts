@@ -80,6 +80,8 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
         priority: "High",
         itPriority: null,
         status: "New",
+        version: 1,
+        actionsTaken: [],
         resolvedIndicated: false,
         requesterId: 1,
         categoryId: 1,
@@ -105,7 +107,9 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
         description: "Dell Latitude 7420 battery health degraded to 40%",
         priority: "Medium",
         itPriority: "Medium",
-        status: "Assigned",
+        status: "Open",
+        version: 1,
+        actionsTaken: [],
         resolvedIndicated: false,
         requesterId: 1,
         categoryId: 2,
@@ -132,6 +136,8 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
         priority: "Medium",
         itPriority: "High",
         status: "In_Progress",
+        version: 1,
+        actionsTaken: [{ id: 1, ticketId: 103 }],
         resolvedIndicated: false,
         requesterId: 1,
         categoryId: 2,
@@ -157,7 +163,9 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
         description: "Cannot receive external email messages",
         priority: "High",
         itPriority: "High",
-        status: "Pending_Requester",
+        status: "Waiting_for_Requester",
+        version: 1,
+        actionsTaken: [],
         resolvedIndicated: false,
         requesterId: 1,
         categoryId: 3,
@@ -184,6 +192,8 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
         priority: "Low",
         itPriority: "Low",
         status: "Resolved",
+        version: 1,
+        actionsTaken: [{ id: 2, ticketId: 105 }],
         resolvedIndicated: true,
         requesterId: 1,
         categoryId: 2,
@@ -210,6 +220,8 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
         priority: "Critical",
         itPriority: "Critical",
         status: "Closed",
+        version: 1,
+        actionsTaken: [],
         resolvedIndicated: true,
         requesterId: 1,
         categoryId: 4,
@@ -247,7 +259,7 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       6: anotherRequesterUser,
     };
 
-    setPrisma({
+    const mockPrismaInstance: any = {
       user: {
         findUnique: async ({ where }: any) => {
           if (where.id) return usersMap[where.id] || null;
@@ -273,8 +285,25 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
           if (!t) return null;
           return {
             ...t,
+            version: t.version || 1,
+            _count: { actionsTaken: (t.actionsTaken || []).length },
             activityLogs: mockLogs.filter((l) => l.ticketId === t.id),
           };
+        },
+        updateMany: async ({ where, data }: any) => {
+          const t = mockTickets.find((x) => x.id === where.id);
+          if (!t) return { count: 0 };
+          if (where.version !== undefined && (t.version || 1) !== where.version) {
+            return { count: 0 };
+          }
+          if (data.version && data.version.increment !== undefined) {
+            t.version = (t.version || 1) + data.version.increment;
+          } else if (typeof data.version === "number") {
+            t.version = data.version;
+          }
+          if (data.status) t.status = data.status;
+          t.updatedAt = new Date();
+          return { count: 1 };
         },
         update: async ({ where, data }: any) => {
           const t = mockTickets.find((x) => x.id === where.id);
@@ -285,6 +314,8 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
           }
           return {
             ...t,
+            version: t.version || 1,
+            _count: { actionsTaken: (t.actionsTaken || []).length },
             activityLogs: mockLogs.filter((l) => l.ticketId === t.id),
           };
         },
@@ -299,7 +330,15 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
           return mockLogs.filter((l) => l.ticketId === where.ticketId);
         },
       },
-    });
+      $transaction: async (fnOrArray: any) => {
+        if (typeof fnOrArray === "function") {
+          return await fnOrArray(mockPrismaInstance);
+        }
+        return Promise.all(fnOrArray);
+      },
+    };
+
+    setPrisma(mockPrismaInstance);
   });
 
   describe("Staff Members List (GET /api/staff/members)", () => {
@@ -445,43 +484,43 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
     });
   });
 
-  describe("Status Transition Matrix Enforcement (BR-08 / BR-13)", () => {
-    it("TC-OP-06 (AC-12, BR-08): valid transition New ➔ Assigned succeeds with HTTP 200", async () => {
+  describe("Status Transition Matrix Enforcement (BR-08 / BR-13 / BR-06)", () => {
+    it("TC-OP-06 (AC-12, BR-08): valid transition New ➔ Open succeeds with HTTP 200", async () => {
       const res = await request(app)
         .patch("/api/staff/tickets/101/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Assigned" });
+        .send({ status: "Open", version: 1 });
 
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe("Assigned");
+      expect(res.body.status).toBe("Open");
       expect(mockLogs.some((l) => l.action === "STATUS_TRANSITION")).toBe(true);
     });
 
-    it("TC-OP-07 (AC-12, BR-08): valid transition Assigned ➔ In_Progress succeeds with HTTP 200", async () => {
+    it("TC-OP-07 (AC-12, BR-08): valid transition Open ➔ In_Progress succeeds with HTTP 200", async () => {
       const res = await request(app)
         .patch("/api/staff/tickets/102/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "In_Progress" });
+        .send({ status: "In_Progress", version: 1 });
 
       expect(res.status).toBe(200);
       expect(res.body.status).toBe("In_Progress");
     });
 
-    it("TC-OP-08 (AC-12, BR-08): valid transition In_Progress ➔ Pending_Requester succeeds with HTTP 200", async () => {
+    it("TC-OP-08 (AC-12, BR-08): valid transition In_Progress ➔ Waiting_for_Requester succeeds with HTTP 200", async () => {
       const res = await request(app)
         .patch("/api/staff/tickets/103/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Pending_Requester" });
+        .send({ status: "Waiting_for_Requester", version: 1 });
 
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe("Pending_Requester");
+      expect(res.body.status).toBe("Waiting_for_Requester");
     });
 
     it("TC-OP-09 (AC-12, BR-08): valid transition In_Progress ➔ Resolved succeeds with HTTP 200", async () => {
       const res = await request(app)
         .patch("/api/staff/tickets/103/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Resolved" });
+        .send({ status: "Resolved", version: 1 });
 
       expect(res.status).toBe(200);
       expect(res.body.status).toBe("Resolved");
@@ -491,27 +530,27 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       const res = await request(app)
         .patch("/api/staff/tickets/105/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Closed" });
+        .send({ status: "Closed", version: 1 });
 
       expect(res.status).toBe(200);
       expect(res.body.status).toBe("Closed");
     });
 
-    it("TC-OP-11 (AC-12, BR-08): valid transition Resolved ➔ In_Progress (Reopen) succeeds with HTTP 200", async () => {
+    it("TC-OP-11 (AC-12, BR-08): valid transition Resolved ➔ Reopened succeeds with HTTP 200", async () => {
       const res = await request(app)
         .patch("/api/staff/tickets/105/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "In_Progress" });
+        .send({ status: "Reopened", version: 1 });
 
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe("In_Progress");
+      expect(res.body.status).toBe("Reopened");
     });
 
     it("TC-OP-12 (AC-13, BR-08): invalid transition New ➔ Resolved returns HTTP 400", async () => {
       const res = await request(app)
         .patch("/api/staff/tickets/101/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Resolved" });
+        .send({ status: "Resolved", version: 1 });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Invalid status transition from 'New' to 'Resolved'");
@@ -521,7 +560,7 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       const res = await request(app)
         .patch("/api/staff/tickets/106/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "In_Progress" });
+        .send({ status: "In_Progress", version: 1 });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Invalid status transition from 'Closed' to 'In_Progress'");
@@ -531,7 +570,7 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       const res = await request(app)
         .patch("/api/staff/tickets/106/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Resolved" });
+        .send({ status: "Resolved", version: 1 });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Invalid status transition from 'Closed' to 'Resolved'");
@@ -541,7 +580,7 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       const res = await request(app)
         .patch("/api/staff/tickets/101/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Closed" });
+        .send({ status: "Closed", version: 1 });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Invalid status transition from 'New' to 'Closed'");
@@ -551,7 +590,7 @@ describe("Lab 3: IT Staff Ticket Operations & Status Transition Matrix (staff-ti
       const res = await request(app)
         .patch("/api/staff/tickets/101/status")
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "New" });
+        .send({ status: "New", version: 1 });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain("Invalid status transition");

@@ -13,6 +13,18 @@ async function main() {
     console.warn("Notice: could not restart sequences:", err);
   }
 
+  // Migrate any legacy status names to canonical 8 statuses per BR-06
+  try {
+    await prisma.ticket.updateMany({
+      where: { status: { in: ['Pending_Requester', 'pending_requester', 'pending requester'] } },
+      data: { status: 'Waiting_for_Requester' },
+    });
+    await prisma.ticket.updateMany({
+      where: { status: { in: ['Assigned', 'assigned'] } },
+      data: { status: 'Open' },
+    });
+  } catch {}
+
   // 1. Seed Categories (4 standard categories)
   const categories = [
     "Account and Access",
