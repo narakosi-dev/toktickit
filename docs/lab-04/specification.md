@@ -124,7 +124,7 @@ The service desk stakeholder emphasizes that while communication channels (Publi
   - `myAssignedCount`: Tickets where `assignedToId = currentUser.id` and `status NOT IN ('Closed', 'Cancelled')`.
   - `statusBreakdown`: Counts grouped by each active status (`New`, `Open`, `In_Progress`, `Waiting_for_Requester`, `Resolved`, `Reopened`).
   - `priorityBreakdown`: Active tickets grouped by effective priority (`Critical`, `High`, `Medium`, `Low`).
-  - `urgentTickets`: Top 5 tickets with `itPriority = 'Critical'` or `priority = 'Critical'` sorted by `createdAt ASC` (oldest first).
+  - `urgentTickets`: Top 5 active tickets where effective priority is `Critical` (`itPriority = 'Critical'` or (`itPriority IS NULL` AND `priority = 'Critical'`)) sorted by `createdAt ASC` (oldest first).
 
 ---
 

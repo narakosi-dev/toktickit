@@ -297,17 +297,15 @@ Return authoritative aggregated operational metrics and urgent ticket summaries 
   "metrics": {
     "unassignedCount": 5,
     "myAssignedCount": 8,
-    "statusCounts": {
+    "statusBreakdown": {
       "New": 5,
       "Open": 8,
       "In_Progress": 12,
       "Waiting_for_Requester": 4,
       "Resolved": 15,
-      "Reopened": 1,
-      "Closed": 42,
-      "Cancelled": 3
+      "Reopened": 1
     },
-    "priorityCounts": {
+    "priorityBreakdown": {
       "Critical": 3,
       "High": 11,
       "Medium": 18,
@@ -327,6 +325,7 @@ Return authoritative aggregated operational metrics and urgent ticket summaries 
       "createdAt": "2026-10-29T07:15:00.000Z"
     }
   ],
+  "generatedAt": "2026-10-31T16:00:00.000Z",
   "recentUpdatedTickets": [
     {
       "id": 12,

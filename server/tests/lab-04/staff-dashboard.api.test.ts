@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../../src/app.js";
 import { signToken } from "../../src/auth.js";
@@ -76,6 +76,11 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
     12: mustChangePwdStaff,
   };
 
+  afterAll(() => {
+    // Reset prisma client to prevent test pollution
+    setPrisma(null);
+  });
+
   beforeEach(() => {
     requesterToken = signToken(requesterUser);
     staffCharlieToken = signToken(staffCharlie);
@@ -86,7 +91,7 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
 
     // Seed diverse ticket dataset to verify BR-11 and AC-10
     mockTickets = [
-      // 1. New, Unassigned, Priority: High, itPriority: null -> Critical override test later
+      // 1. New, Unassigned, Priority: High, itPriority: null
       {
         id: 101,
         ticketNumber: "TKT-2026-000101",
@@ -214,10 +219,54 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
         },
       },
       ticket: {
+        count: async ({ where }: any = {}) => {
+          let list = [...mockTickets];
+          if (where) {
+            if (where.status?.notIn) {
+              list = list.filter((t) => !where.status.notIn.includes(t.status));
+            }
+            if (where.assignedToId === null) {
+              list = list.filter((t) => t.assignedToId === null || t.assignedToId === undefined);
+            } else if (where.assignedToId !== undefined) {
+              list = list.filter((t) => t.assignedToId === where.assignedToId);
+            }
+          }
+          return list.length;
+        },
+        groupBy: async (args: any = {}) => {
+          let list = [...mockTickets];
+          if (args.where?.status?.notIn) {
+            list = list.filter((t) => !args.where.status.notIn.includes(t.status));
+          }
+          const byFields: string[] = args.by || [];
+          const groups: Record<string, { group: any; count: number }> = {};
+
+          for (const t of list) {
+            const key = byFields.map((f) => String(t[f] ?? "null")).join("___");
+            if (!groups[key]) {
+              const groupObj: any = {};
+              for (const f of byFields) {
+                groupObj[f] = t[f] ?? null;
+              }
+              groups[key] = { group: groupObj, count: 0 };
+            }
+            groups[key].count++;
+          }
+
+          return Object.values(groups).map(({ group, count }) => ({
+            ...group,
+            _count: {
+              ...group,
+              _all: count,
+              status: count,
+              priority: count,
+            },
+          }));
+        },
         findMany: async (args: any = {}) => {
           let list = [...mockTickets];
 
-          // Handle where filters
+          // Handle where filters including real OR conditions
           if (args.where) {
             if (args.where.status?.notIn) {
               const excluded = args.where.status.notIn;
@@ -225,8 +274,20 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
             }
             if (args.where.OR) {
               list = list.filter((t) => {
-                const eff = t.itPriority || t.priority;
-                return eff === "Critical";
+                return args.where.OR.some((cond: any) => {
+                  let match = true;
+                  if (cond.itPriority !== undefined) {
+                    match =
+                      match &&
+                      (cond.itPriority === null
+                        ? t.itPriority === null || t.itPriority === undefined
+                        : t.itPriority === cond.itPriority);
+                  }
+                  if (cond.priority !== undefined) {
+                    match = match && t.priority === cond.priority;
+                  }
+                  return match;
+                });
               });
             }
           }
@@ -243,11 +304,22 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
             list = list.slice(0, args.take);
           }
 
-          // Handle include (requester & assignedTo)
+          // Return formatted records
           return list.map((t) => ({
-            ...t,
-            requester: t.requesterId ? { id: t.requesterId, name: mockUsersMap[t.requesterId]?.name || "Unknown" } : null,
-            assignedTo: t.assignedToId ? { id: t.assignedToId, name: mockUsersMap[t.assignedToId]?.name || "Unknown" } : null,
+            id: t.id,
+            ticketNumber: t.ticketNumber,
+            summary: t.summary,
+            priority: t.priority,
+            itPriority: t.itPriority,
+            status: t.status,
+            createdAt: t.createdAt,
+            updatedAt: t.updatedAt,
+            requester: t.requesterId
+              ? { id: t.requesterId, name: mockUsersMap[t.requesterId]?.name || "Unknown" }
+              : null,
+            assignedTo: t.assignedToId
+              ? { id: t.assignedToId, name: mockUsersMap[t.assignedToId]?.name || "Unknown" }
+              : null,
           }));
         },
       },
@@ -304,6 +376,7 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty("metrics");
+      expect(res.body.generatedAt).toBeDefined();
       const { metrics } = res.body;
 
       // Active unassigned tickets:
@@ -316,7 +389,17 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
       // Excluded: TKT-108 (Closed, 8)
       expect(metrics.myAssignedCount).toBe(3);
 
-      // Status counts breakdown:
+      // Status breakdown (active statuses per BR-11):
+      expect(metrics.statusBreakdown).toEqual({
+        New: 1,
+        Open: 1,
+        In_Progress: 2,
+        Waiting_for_Requester: 1,
+        Resolved: 1,
+        Reopened: 1,
+      });
+
+      // Status counts breakdown (full status counts):
       expect(metrics.statusCounts).toEqual({
         New: 1,
         Open: 1,
@@ -328,7 +411,7 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
         Cancelled: 1,
       });
 
-      // Priority counts breakdown (Active tickets only, using effective priority):
+      // Priority breakdown (Active tickets only, using effective priority per BR-11):
       // Active tickets:
       // TKT-101: itPriority null, priority High -> High
       // TKT-102: itPriority null, priority Critical -> Critical
@@ -338,6 +421,12 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
       // TKT-106: itPriority null, priority Medium -> Medium
       // TKT-107: itPriority Critical, priority High -> Critical (override)
       // Total active: Critical: 3 (102, 103, 107), High: 1 (101), Medium: 2 (104, 106), Low: 1 (105)
+      expect(metrics.priorityBreakdown).toEqual({
+        Critical: 3,
+        High: 1,
+        Medium: 2,
+        Low: 1,
+      });
       expect(metrics.priorityCounts).toEqual({
         Critical: 3,
         High: 1,
@@ -436,6 +525,14 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
       expect(res.status).toBe(200);
       expect(res.body.metrics.unassignedCount).toBe(0);
       expect(res.body.metrics.myAssignedCount).toBe(0);
+      expect(res.body.metrics.statusBreakdown).toEqual({
+        New: 0,
+        Open: 0,
+        In_Progress: 0,
+        Waiting_for_Requester: 0,
+        Resolved: 0,
+        Reopened: 0,
+      });
       expect(res.body.metrics.statusCounts).toEqual({
         New: 0,
         Open: 0,
@@ -445,6 +542,12 @@ describe("Lab 4: IT Staff & Administrator Dashboard APIs (staff-dashboard.api.te
         Reopened: 0,
         Closed: 0,
         Cancelled: 0,
+      });
+      expect(res.body.metrics.priorityBreakdown).toEqual({
+        Critical: 0,
+        High: 0,
+        Medium: 0,
+        Low: 0,
       });
       expect(res.body.metrics.priorityCounts).toEqual({
         Critical: 0,

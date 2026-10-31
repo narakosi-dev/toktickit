@@ -6,7 +6,7 @@ export const dashboardRouter = Router();
 
 // ===========================================================================
 // GET /api/dashboard/staff
-// Operational metrics and urgent tickets for IT Staff and Administrator
+// Operational metrics and urgent tickets for IT Staff and Administrator (BR-11, AC-10, FR-10)
 // ===========================================================================
 dashboardRouter.get(
   "/staff",
@@ -22,20 +22,41 @@ dashboardRouter.get(
       const currentUserId = req.user.id;
       const terminalStatuses = ["Closed", "Cancelled"];
 
-      // 1. Fetch tickets for metrics aggregation
-      const allTickets = await prisma.ticket.findMany({
-        select: {
-          id: true,
-          status: true,
-          priority: true,
-          itPriority: true,
-          assignedToId: true,
+      // 1. Unassigned active tickets count (database aggregation via count)
+      const unassignedCount = await prisma.ticket.count({
+        where: {
+          status: { notIn: terminalStatuses },
+          assignedToId: null,
         },
       });
 
-      let unassignedCount = 0;
-      let myAssignedCount = 0;
+      // 2. Current user active assigned tickets count (database aggregation via count)
+      const myAssignedCount = await prisma.ticket.count({
+        where: {
+          status: { notIn: terminalStatuses },
+          assignedToId: currentUserId,
+        },
+      });
 
+      // 3. Status breakdown: aggregated via database groupBy
+      const statusGroup = await prisma.ticket.groupBy({
+        by: ["status"],
+        _count: {
+          status: true,
+        },
+      });
+
+      // Active statuses tracked per BR-11
+      const statusBreakdown: Record<string, number> = {
+        New: 0,
+        Open: 0,
+        In_Progress: 0,
+        Waiting_for_Requester: 0,
+        Resolved: 0,
+        Reopened: 0,
+      };
+
+      // Full status counts for backwards compatibility
       const statusCounts: Record<string, number> = {
         New: 0,
         Open: 0,
@@ -47,79 +68,78 @@ dashboardRouter.get(
         Cancelled: 0,
       };
 
-      const priorityCounts: Record<string, number> = {
+      for (const item of statusGroup) {
+        let st = item.status;
+        if (st === "Pending_Requester") st = "Waiting_for_Requester";
+        const count =
+          typeof item._count === "number"
+            ? item._count
+            : (item._count?.status ?? (item._count as any)?._all ?? 0);
+
+        if (statusBreakdown[st] !== undefined) {
+          statusBreakdown[st] += count;
+        }
+        if (statusCounts[st] !== undefined) {
+          statusCounts[st] += count;
+        } else {
+          statusCounts[st] = count;
+        }
+      }
+
+      // 4. Priority breakdown for active tickets: aggregated via database groupBy on itPriority and priority
+      const priorityGroup = await prisma.ticket.groupBy({
+        by: ["itPriority", "priority"],
+        where: {
+          status: { notIn: terminalStatuses },
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      const priorityBreakdown: Record<string, number> = {
         Critical: 0,
         High: 0,
         Medium: 0,
         Low: 0,
       };
 
-      for (const t of allTickets) {
-        const isTerminal = terminalStatuses.includes(t.status);
-
-        // unassignedCount: active tickets with no assigned technician
-        if (!isTerminal && (t.assignedToId === null || t.assignedToId === undefined)) {
-          unassignedCount++;
-        }
-
-        // myAssignedCount: active tickets assigned to current user
-        if (!isTerminal && t.assignedToId === currentUserId) {
-          myAssignedCount++;
-        }
-
-        // statusCounts (mapping legacy Pending_Requester if present)
-        let st = t.status;
-        if (st === "Pending_Requester") st = "Waiting_for_Requester";
-        if (statusCounts[st] !== undefined) {
-          statusCounts[st]++;
-        } else {
-          statusCounts[st] = 1;
-        }
-
-        // priorityCounts: active tickets grouped by effective priority (itPriority override or original priority)
-        if (!isTerminal) {
-          const effPriority = t.itPriority || t.priority;
-          if (priorityCounts[effPriority] !== undefined) {
-            priorityCounts[effPriority]++;
-          }
+      for (const item of priorityGroup) {
+        const effPriority = item.itPriority || item.priority;
+        const count =
+          typeof item._count === "number"
+            ? item._count
+            : ((item._count as any)?._all ?? (item._count as any)?.priority ?? 0);
+        if (priorityBreakdown[effPriority] !== undefined) {
+          priorityBreakdown[effPriority] += count;
         }
       }
 
-      // 2. Urgent Tickets: Top 5 critical active tickets sorted by createdAt ASC
-      let urgentTicketsRaw: any[] = [];
-      try {
-        urgentTicketsRaw = await prisma.ticket.findMany({
-          where: {
-            status: { notIn: terminalStatuses },
-            OR: [
-              { itPriority: "Critical" },
-              { itPriority: null, priority: "Critical" },
-            ],
-          },
-          orderBy: { createdAt: "asc" },
-          take: 5,
-          include: {
-            requester: { select: { id: true, name: true } },
-            assignedTo: { select: { id: true, name: true } },
-          },
-        });
-      } catch {
-        // Fallback if OR with null is not supported by a mock
-        const activeTickets = await prisma.ticket.findMany({
-          include: {
-            requester: { select: { id: true, name: true } },
-            assignedTo: { select: { id: true, name: true } },
-          },
-        });
-        urgentTicketsRaw = activeTickets
-          .filter((t: any) => {
-            if (terminalStatuses.includes(t.status)) return false;
-            const eff = t.itPriority || t.priority;
-            return eff === "Critical";
-          })
-          .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-          .slice(0, 5);
-      }
+      const priorityCounts = { ...priorityBreakdown };
+
+      // 5. Urgent Tickets: Top 5 critical active tickets sorted by createdAt ASC (oldest first)
+      const urgentTicketsRaw = await prisma.ticket.findMany({
+        where: {
+          status: { notIn: terminalStatuses },
+          OR: [
+            { itPriority: "Critical" },
+            { itPriority: null, priority: "Critical" },
+          ],
+        },
+        orderBy: { createdAt: "asc" },
+        take: 5,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          priority: true,
+          itPriority: true,
+          status: true,
+          createdAt: true,
+          requester: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true } },
+        },
+      });
 
       const urgentTickets = urgentTicketsRaw.map((t: any) => ({
         id: t.id,
@@ -133,28 +153,22 @@ dashboardRouter.get(
         createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
       }));
 
-      // 3. Recent Updated Tickets: Top 5 tickets sorted by updatedAt DESC
-      let recentUpdatedTicketsRaw: any[] = [];
-      try {
-        recentUpdatedTicketsRaw = await prisma.ticket.findMany({
-          orderBy: { updatedAt: "desc" },
-          take: 5,
-          include: {
-            requester: { select: { id: true, name: true } },
-            assignedTo: { select: { id: true, name: true } },
-          },
-        });
-      } catch {
-        const allWithIncludes = await prisma.ticket.findMany({
-          include: {
-            requester: { select: { id: true, name: true } },
-            assignedTo: { select: { id: true, name: true } },
-          },
-        });
-        recentUpdatedTicketsRaw = allWithIncludes
-          .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 5);
-      }
+      // 6. Recent Updated Tickets: Top 5 tickets sorted by updatedAt DESC
+      const recentUpdatedTicketsRaw = await prisma.ticket.findMany({
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          priority: true,
+          itPriority: true,
+          status: true,
+          updatedAt: true,
+          requester: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true } },
+        },
+      });
 
       const recentUpdatedTickets = recentUpdatedTicketsRaw.map((t: any) => ({
         id: t.id,
@@ -172,11 +186,14 @@ dashboardRouter.get(
         metrics: {
           unassignedCount,
           myAssignedCount,
+          statusBreakdown,
+          priorityBreakdown,
           statusCounts,
           priorityCounts,
         },
         urgentTickets,
         recentUpdatedTickets,
+        generatedAt: new Date().toISOString(),
       });
     } catch (err: any) {
       console.error("Failed to fetch staff dashboard metrics:", err);
