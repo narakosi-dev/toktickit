@@ -384,7 +384,7 @@ describe("Ticket Status Workflow & Resolution Controls (Lab 4 — Issue 7 / UI-W
       renderStaffTicketDetail();
 
       await waitFor(() => {
-        expect(screen.getByText(/Requester Feedback:/i)).toBeInTheDocument();
+        expect(screen.getByText(/Requester Indication:/i)).toBeInTheDocument();
       });
 
       expect(

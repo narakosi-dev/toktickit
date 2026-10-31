@@ -413,7 +413,7 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
         >
           <span style={{ fontSize: "1.25rem" }}>✅</span>
           <div>
-            <strong>Requester Feedback:</strong> The requester indicated this issue appears resolved. Please verify the Actions Taken and formally set the status to <strong>Resolved</strong> or follow up if further work is required.
+            <strong>Requester Indication:</strong> The requester indicated this issue appears resolved. Please verify the Actions Taken and formally set the status to <strong>Resolved</strong> or follow up if further work is required.
           </div>
         </div>
       )}
