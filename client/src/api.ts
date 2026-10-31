@@ -1,5 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export const OPEN_GROUP_STATUS = "OPEN_GROUP";
+
 export interface Category {
   id: number;
   name: string;

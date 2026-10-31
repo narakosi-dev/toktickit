@@ -68,7 +68,18 @@ const mockRequesterDashboardData: api.RequesterDashboardResponse = {
     closed: 5,
     closedCount: 5,
   },
-  recentTickets: [],
+  recentTickets: [
+    {
+      id: 201,
+      ticketNumber: "TKT-2026-000201",
+      summary: "Sample Ticket",
+      priority: "Medium",
+      status: "In_Progress",
+      resolvedIndicated: false,
+      category: { id: 1, name: "General" },
+      updatedAt: new Date().toISOString(),
+    },
+  ],
   generatedAt: new Date().toISOString(),
 };
 
@@ -296,6 +307,49 @@ describe("Dashboard Drill-down Integration Tests (Issue #58 / Review Feedback)",
       expect(api.fetchTickets).toHaveBeenCalledWith(
         expect.objectContaining({
           status: undefined,
+        })
+      );
+    });
+  });
+  it("Requester drill-down: clicks 'View All My Tickets' quick action and opens MyTickets with status=OPEN_GROUP", async () => {
+    renderRequesterAppShell();
+
+    fireEvent.click(screen.getByTestId("nav-dashboard"));
+    await waitFor(() => {
+      expect(screen.getByTestId("quick-action-view-tickets")).toBeInTheDocument();
+    });
+
+    vi.mocked(api.fetchTickets).mockClear();
+
+    fireEvent.click(screen.getByTestId("quick-action-view-tickets"));
+
+    await waitFor(() => {
+      expect(api.fetchTickets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requesterId: 20,
+          status: "OPEN_GROUP",
+        })
+      );
+    });
+  });
+
+  it("Requester drill-down: clicks 'View all my tickets →' header link and opens MyTickets with status=OPEN_GROUP", async () => {
+    renderRequesterAppShell();
+
+    fireEvent.click(screen.getByTestId("nav-dashboard"));
+    await waitFor(() => {
+      expect(screen.getByTestId("link-view-all-tickets")).toBeInTheDocument();
+    });
+
+    vi.mocked(api.fetchTickets).mockClear();
+
+    fireEvent.click(screen.getByTestId("link-view-all-tickets"));
+
+    await waitFor(() => {
+      expect(api.fetchTickets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requesterId: 20,
+          status: "OPEN_GROUP",
         })
       );
     });

@@ -159,9 +159,13 @@ describe("RequesterDashboard Component (Lab 4 — Issue 10 / UI-DSH-02)", () => 
     fireEvent.click(screen.getByTestId("quick-action-create"));
     expect(onNavigateToCreate).toHaveBeenCalledTimes(1);
 
-    // Click View All My Tickets
+    // Click View All My Tickets (Quick Action)
     fireEvent.click(screen.getByTestId("quick-action-view-tickets"));
-    expect(onNavigateToMyTickets).toHaveBeenCalledTimes(1);
+    expect(onNavigateToMyTickets).toHaveBeenCalledWith({ status: "OPEN_GROUP" });
+
+    // Click View all my tickets → (Header Link)
+    fireEvent.click(screen.getByTestId("link-view-all-tickets"));
+    expect(onNavigateToMyTickets).toHaveBeenCalledWith({ status: "OPEN_GROUP" });
   });
 
   it("UI-DSH-02: displays clean empty state when requester has zero tickets", async () => {

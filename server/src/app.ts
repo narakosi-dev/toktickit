@@ -317,7 +317,7 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
     if (status && typeof status === "string" && status.trim()) {
       const s = status.trim();
       const norm = s.replace(/\s+/g, "_");
-      if (norm === "OPEN_GROUP" || norm === "MY_OPEN" || norm === "open_group") {
+      if (norm === "OPEN_GROUP") {
         where.status = { in: ["New", "Open", "In_Progress", "Waiting_for_Requester", "Reopened"] };
       } else if (norm.toLowerCase() === "in_progress") {
         where.status = "In_Progress";

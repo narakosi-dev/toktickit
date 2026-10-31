@@ -6,6 +6,7 @@ import {
   Category,
   TicketListItem,
   PaginationMetadata,
+  OPEN_GROUP_STATUS,
 } from "../api.js";
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const STATUSES = [
-  { label: "My Open Tickets", value: "OPEN_GROUP" },
+  { label: "My Open Tickets", value: OPEN_GROUP_STATUS },
   { label: "New", value: "New" },
   { label: "Open", value: "Open" },
   { label: "In Progress", value: "In_Progress" },
