@@ -201,3 +201,111 @@ dashboardRouter.get(
     }
   }
 );
+
+// ===========================================================================
+// GET /api/dashboard/requester
+// Personalized operational metrics and recent tickets for Requester (BR-10, AC-11, FR-10)
+// ===========================================================================
+dashboardRouter.get(
+  "/requester",
+  authenticateToken,
+  requirePasswordChanged,
+  async (req: Request, res: Response) => {
+    try {
+      const currentUserId = req.user?.id;
+      if (!currentUserId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const prisma = getPrisma();
+
+      // 1. Total Open: tickets owned by requester with active open status
+      const totalOpen = await prisma.ticket.count({
+        where: {
+          requesterId: currentUserId,
+          status: { in: ["New", "Open", "In_Progress", "Waiting_for_Requester", "Reopened"] },
+        },
+      });
+
+      // 2. In Progress: tickets owned by requester with status 'In_Progress'
+      const inProgress = await prisma.ticket.count({
+        where: {
+          requesterId: currentUserId,
+          status: "In_Progress",
+        },
+      });
+
+      // 3. Waiting for Requester: tickets owned by requester with status 'Waiting_for_Requester'
+      const waitingForRequester = await prisma.ticket.count({
+        where: {
+          requesterId: currentUserId,
+          status: "Waiting_for_Requester",
+        },
+      });
+
+      // 4. Recently Resolved: tickets owned by requester resolved within the last 30 days
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentlyResolved = await prisma.ticket.count({
+        where: {
+          requesterId: currentUserId,
+          status: "Resolved",
+          updatedAt: { gte: thirtyDaysAgo },
+        },
+      });
+
+      // 5. Closed: tickets owned by requester with status 'Closed'
+      const closed = await prisma.ticket.count({
+        where: {
+          requesterId: currentUserId,
+          status: "Closed",
+        },
+      });
+
+      // 6. Recent Tickets: Top 5 most recently updated tickets owned by requester
+      const recentTicketsRaw = await prisma.ticket.findMany({
+        where: {
+          requesterId: currentUserId,
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          ticketNumber: true,
+          summary: true,
+          priority: true,
+          status: true,
+          resolvedIndicated: true,
+          category: { select: { id: true, name: true } },
+          updatedAt: true,
+        },
+      });
+
+      const recentTickets = recentTicketsRaw.map((t: any) => ({
+        id: t.id,
+        ticketNumber: t.ticketNumber,
+        summary: t.summary,
+        priority: t.priority,
+        status: t.status,
+        resolvedIndicated: Boolean(t.resolvedIndicated),
+        category: t.category ? { id: t.category.id, name: t.category.name } : null,
+        updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : t.updatedAt,
+      }));
+
+      return res.status(200).json({
+        metrics: {
+          totalOpen,
+          inProgress,
+          waitingForRequester,
+          recentlyResolved,
+          closed,
+          closedCount: closed,
+        },
+        recentTickets,
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      console.error("Failed to fetch requester dashboard metrics:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
