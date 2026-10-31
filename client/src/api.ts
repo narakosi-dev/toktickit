@@ -328,7 +328,7 @@ export interface StaffTicketItem {
   priority: string;
   itPriority?: string | null;
   status: string;
-  version?: number;
+  version: number;
   resolvedIndicated?: boolean;
   resolvedByRequester?: boolean;
   requesterId?: number;
@@ -517,7 +517,7 @@ export async function updateTicketStatus(
   token: string,
   ticketId: number,
   status: string,
-  version?: number,
+  version: number,
   comment?: string
 ): Promise<any> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/status`, {
@@ -526,7 +526,7 @@ export async function updateTicketStatus(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ status, version: version ?? 1, comment }),
+    body: JSON.stringify({ status, version, comment }),
   });
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));

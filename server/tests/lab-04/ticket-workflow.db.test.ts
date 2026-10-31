@@ -74,8 +74,13 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
       });
       testTicketId = ticket.id;
     } catch (err: any) {
-      console.warn("PostgreSQL not reachable for live integration test; skipping DB test:", err.message);
       isDbAvailable = false;
+      if (process.env.CI) {
+        throw new Error(
+          `PostgreSQL database connection failed in CI environment: ${err.message}. ticket-workflow.db.test.ts cannot be bypassed in CI.`
+        );
+      }
+      console.warn("PostgreSQL not reachable for live integration test in local environment; skipping DB test:", err.message);
     }
   });
 
@@ -90,39 +95,43 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
     await prisma.$disconnect();
   });
 
-  it("proves PostgreSQL atomic OCC CAS: two concurrent transitions with identical version yield exactly 1 winner (200) and 1 conflict (409)", async () => {
-    if (!isDbAvailable) {
-      console.log("Skipping live PostgreSQL race test (DB not available in current environment)");
-      return;
+  it.skipIf(!isDbAvailable && !process.env.CI)(
+    "proves PostgreSQL atomic OCC CAS: two concurrent transitions with identical version yield exactly 1 winner (200) and 1 conflict (409)",
+    async () => {
+      if (process.env.CI && !isDbAvailable) {
+        throw new Error(
+          "PostgreSQL database connection failed in CI environment: live DB race condition test must execute."
+        );
+      }
+
+      // Both requests attempt valid transitions from New (version 1) simultaneously
+      const [res1, res2] = await Promise.all([
+        request(app)
+          .patch(`/api/tickets/${testTicketId}/status`)
+          .set("Authorization", `Bearer ${staffToken}`)
+          .send({ status: "Open", version: 1 }),
+        request(app)
+          .patch(`/api/tickets/${testTicketId}/status`)
+          .set("Authorization", `Bearer ${staffToken}`)
+          .send({ status: "Cancelled", version: 1 }),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort();
+      // In PostgreSQL, atomic CAS guarantees exactly one winner (200) and one conflict (409)
+      expect(statuses).toEqual([200, 409]);
+
+      const conflictRes = res1.status === 409 ? res1 : res2;
+      expect(conflictRes.body.code).toBe("CONCURRENCY_CONFLICT");
+      expect(conflictRes.body.currentVersion).toBe(2);
+
+      const winningRes = res1.status === 200 ? res1 : res2;
+      expect(["Open", "Cancelled"]).toContain(winningRes.body.status);
+      expect(winningRes.body.version).toBe(2);
+
+      // Verify true database state in PostgreSQL
+      const liveTicket = await prisma.ticket.findUnique({ where: { id: testTicketId } });
+      expect(liveTicket?.version).toBe(2);
+      expect(["Open", "Cancelled"]).toContain(liveTicket?.status);
     }
-
-    // Both requests attempt valid transitions from New (version 1) simultaneously
-    const [res1, res2] = await Promise.all([
-      request(app)
-        .patch(`/api/tickets/${testTicketId}/status`)
-        .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Open", version: 1 }),
-      request(app)
-        .patch(`/api/tickets/${testTicketId}/status`)
-        .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Cancelled", version: 1 }),
-    ]);
-
-    const statuses = [res1.status, res2.status].sort();
-    // In PostgreSQL, atomic CAS guarantees exactly one winner (200) and one conflict (409)
-    expect(statuses).toEqual([200, 409]);
-
-    const conflictRes = res1.status === 409 ? res1 : res2;
-    expect(conflictRes.body.code).toBe("CONCURRENCY_CONFLICT");
-    expect(conflictRes.body.currentVersion).toBe(2);
-
-    const winningRes = res1.status === 200 ? res1 : res2;
-    expect(["Open", "Cancelled"]).toContain(winningRes.body.status);
-    expect(winningRes.body.version).toBe(2);
-
-    // Verify true database state in PostgreSQL
-    const liveTicket = await prisma.ticket.findUnique({ where: { id: testTicketId } });
-    expect(liveTicket?.version).toBe(2);
-    expect(["Open", "Cancelled"]).toContain(liveTicket?.status);
-  });
+  );
 });
