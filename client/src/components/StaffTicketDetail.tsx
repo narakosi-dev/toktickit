@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import ActionsTakenSection from "./ActionsTakenSection.js";
 import { useAuth } from "../context/AuthContext.js";
 import {
   fetchStaffTicketDetail,
@@ -612,6 +613,14 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
 
         {/* Right Column: Communication Center (Tabs for Public Comments vs Internal Notes) */}
         <div className="col-12 col-lg-7">
+          {/* Actions Taken Management (Lab 4 — Issue 6) */}
+          <ActionsTakenSection
+            ticketId={ticket.id}
+            token={token}
+            readOnly={false}
+            staffMembers={staffMembers}
+          />
+
           <div className="zen-card p-4">
             {/* Tab Switcher */}
             <div className="d-flex border-bottom mb-4 gap-2">

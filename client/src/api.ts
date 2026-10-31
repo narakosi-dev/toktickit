@@ -796,3 +796,110 @@ export function validatePasswordStrength(password: string): { valid: boolean; re
 
 
 
+
+// Lab 4 — Issue 4 & 6: Actions Taken Types & API
+// ---------------------------------------------------------------------------
+export interface ActionTakenItem {
+  id: number;
+  ticketId: number;
+  performedById: number;
+  actionDateTime: string;
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  performedBy?: {
+    id: number;
+    name: string;
+    email?: string;
+    role?: string;
+  };
+}
+
+export interface ActionsTakenListResponse {
+  ticketId: number;
+  ticketNumber: string;
+  totalActions: number;
+  actionsTaken: ActionTakenItem[];
+}
+
+export interface CreateActionTakenPayload {
+  description: string;
+  result: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  actionDateTime?: string;
+  performedById?: number;
+}
+
+export interface UpdateActionTakenPayload {
+  description?: string;
+  result?: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  actionDateTime?: string;
+  performedById?: number;
+}
+
+export async function fetchActionsTaken(
+  token: string,
+  ticketId: number
+): Promise<ActionsTakenListResponse> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch actions taken");
+  }
+  return res.json();
+}
+
+export async function createActionTaken(
+  token: string,
+  ticketId: number,
+  payload: CreateActionTakenPayload
+): Promise<ActionTakenItem> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to record action taken");
+  }
+  return res.json();
+}
+
+export async function updateActionTaken(
+  token: string,
+  ticketId: number,
+  actionId: number,
+  payload: UpdateActionTakenPayload
+): Promise<ActionTakenItem> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken/${actionId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to update action taken");
+  }
+  return res.json();
+}
