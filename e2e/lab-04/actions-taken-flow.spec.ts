@@ -183,7 +183,7 @@ test.describe.serial("Sprint 4 (Lab 4) E2E: Actions Taken Lifecycle Flow (Issue 
     // Verify ticket detail view and actions taken section
     await expect(page.getByTestId("ticket-detail-view")).toBeVisible();
     if (sharedTicketNumber) {
-      await expect(page.getByRole("heading", { name: sharedTicketNumber })).toBeVisible();
+      await expect(page.getByTestId("ticket-number")).toHaveText(sharedTicketNumber);
     }
 
     const actionsSection = page.getByTestId("actions-taken-section");
