@@ -6,7 +6,7 @@
 
 ---
 
-## 1. Selected Key Prompts (8 Prompts)
+## 1. Selected Key Prompts (10 Prompts)
 
 | # | Prompt (Summarized) | What I Did with the Result |
 |---|---------------------|----------------------------|
@@ -16,8 +16,10 @@
 | **4** | *"Implement Actions Taken REST APIs (`GET`, `POST`, `PATCH /api/tickets/:id/actions-taken`) with RBAC isolation, strict payload validation, and activity logging."* | Developed `server/src/routes/actions.routes.ts`, verified requester data isolation (HTTP 404 on cross-ticket access), and wrote 22 automated tests for Issue #52 (PR #68). |
 | **5** | *"Implement ticket status workflow transition handler (`PATCH /api/tickets/:id/status`), Status Transition Matrix rules, resolution prerequisite gate (AC-07), and Optimistic Concurrency Control (AC-06)."* | Created `server/src/routes/workflow.routes.ts` and automated test suite for Issue #53 (PR #69). |
 | **6** | *"Address peer review feedback on PR #69 from @Sxr1n: transform OCC from in-memory comparison to atomic `updateMany` inside `prisma.$transaction`, require mandatory `version`, close legacy route bypass, unify canonical statuses, and make activity logging transactional."* | Refactored `workflow.routes.ts`, updated `staff.routes.ts` and `app.ts` to increment `version` across all mutating endpoints, moved client to `/api/tickets/:id/status`, and added race-condition concurrency tests. |
-| **7** | *"Implement role-specific dashboard metrics APIs and Zen Green UI widgets for IT Staff, Administrators, and Requesters."* | Created `dashboard.routes.ts` and responsive summary card components displaying unassigned queues, urgent tickets, status distributions, and active follow-up actions. |
-| **8** | *"Build Playwright E2E test suite verifying complete end-to-end ticket lifecycle: creation -> assignment -> actions taken -> OCC conflict resolution -> final closure."* | Authored automated multi-viewport Playwright end-to-end tests ensuring zero regressions across all Lab 1–4 capabilities. |
+| **7** | *"Implement role-specific dashboard metrics APIs and Zen Green UI widgets for IT Staff, Administrators, and Requesters."* | Created `dashboard.routes.ts` and responsive summary card components displaying unassigned queues, urgent tickets, status distributions, and active follow-up actions (PR #72, PR #73, PR #74). |
+| **8** | *"Address peer review feedback on PR #74 from @Sxr1n: disambiguate 'open' grouped filter collision with OPEN_GROUP, wire drill-down filter props in AppShell, and implement comprehensive AppShell drill-down integration tests."* | Defined `OPEN_GROUP_STATUS = "OPEN_GROUP"`, updated server/client routing, and authored `DashboardDrilldown.test.tsx` (PR #74). |
+| **9** | *"Build Playwright E2E multi-viewport test suite verifying complete end-to-end ticket lifecycle (actions-taken-flow, ticket-resolution, dashboards) across Desktop (1280px), Tablet (768px), and Mobile (375px) with zero horizontal overflow."* | Authored `e2e/lab-04/actions-taken-flow.spec.ts`, `ticket-resolution.spec.ts`, and `dashboards.spec.ts`. Captured 15 responsive screenshots into `artifacts/lab-04/screenshots/` (PR #75). |
+| **10** | *"Address peer review feedback on PR #75 from @Sxr1n: convert E2E suite to describe.serial, pass shared ticket number, assert action existence before read-only check, scroll actions section into view, and fix mobile horizontal overflow on StaffDashboard."* | Refactored `actions-taken-flow.spec.ts` with deterministic serial execution, added timeline existence assertions, and fixed CSS flexbox layout in `StaffDashboard.tsx` (PR #75). |
 
 ---
 
@@ -64,16 +66,17 @@ In Round 2 of the peer review on PR #69, `@Sxr1n` delivered another round of inc
    - *Observation:* Mock-based single-threaded tests cannot definitively prove PostgreSQL row-level behavior or concurrency serialization.
    - *Correction:* Added `ticket-workflow.db.test.ts` that executes concurrent requests via `Promise.all` against live PostgreSQL, asserting that the database-level atomic CAS succeeds for exactly 1 request and returns HTTP 409 Conflict for the second.
 
-4. **Payload Efficiency & E2E Assertion Hardening:**
-   - *Observation:* Loading full `actionsTaken` arrays was memory-inefficient when only count is needed. E2E tests hardcoded `localhost:3000` and omitted assertions on prerequisite API calls.
-   - *Correction:* Switched `findUnique` query to use `_count: { select: { actionsTaken: true } }` alone. Hardened Playwright E2E with `process.env.API_URL`, `expect(listRes.ok()).toBe(true)`, and `expect(actionRes.ok()).toBe(true)`. Documented the architectural rationale for why `assign` and `priority` bump version without requiring it in the payload.
+### 2.4 Dashboard Filter Disambiguation & Responsive Reflow (PR #74)
+In PR #74, `@Sxr1n` identified a critical data query collision:
+- When a user clicked "My Open Tickets" on the Requester Dashboard, the client emitted `status: "open"`. Because `app.ts` performed a case-insensitive check after `.toLowerCase()`, selecting the specific status `"Open"` collided with the grouped filter `"open"`, returning all active open statuses (`New`, `Open`, `In_Progress`, `Waiting_for_Requester`, `Reopened`) instead of strictly tickets with status `"Open"`.
+- We resolved this by introducing the explicit `OPEN_GROUP_STATUS = "OPEN_GROUP"` constant across backend and frontend, preserving strict equality checks on individual statuses.
+- Furthermore, connecting `initialStatus` and `initialAssignee` props from `AppShell` into `<StaffTicketQueue>` and `<MyTickets>` ensured that clicking any dashboard metric card immediately navigated to the correctly filtered queue view.
 
-### 2.4 Round-3 & Round-4 Peer Review: Vitest Lifecycle & Explicit Limitation Transparency
-In Rounds 3 and 4 of peer review on PR #69, `@Sxr1n` pointed out nuanced runtime behavior in testing and documentation clarity:
-1. **Vitest Module Collection Lifecycle vs Runtime Hooks:** `it.skipIf(!isDbAvailable)` is evaluated at static test collection time before `beforeAll` establishes the database connection. Replacing it with dynamic `ctx.skip()` inside the test body allows the live database OCC test to run properly in local environments where PostgreSQL is present, while still failing CI if PostgreSQL is unreachable.
-2. **Explicit Known Limitations Documentation:** Explicitly documenting the trade-off of not mandating `version` on rapid triage mutations (`assign`, `priority`) in `specification.md`, `api-spec.md`, and the PR description ensures architectural transparency regarding potential last-write-wins lost updates on those specific fields.
-3. **Mandatory Type-Safe API:** Enforcing `version: number` strictly in `client/src/api.ts` prevents callers from silently defaulting or omitting OCC versioning.
+### 2.5 E2E Test Determinism & Viewport Hardening (PR #75)
+In PR #75, peer review feedback prompted improvements in test reliability and mobile responsiveness:
+- **Test Determinism:** Transitioning from `tbody tr.first()` to `test.describe.serial` and passing `sharedTicketNumber` eliminated fragile dependencies on prior test execution and database ordering.
+- **Verification of Action Presence:** Explicitly asserting that actions exist on the timeline before asserting read-only constraints guaranteed that the test truly validated the rendered actions and not just an empty container.
+- **Responsive Overflow Fix:** On a 375px mobile viewport, `StaffDashboard.tsx` had an initial overflow of 68px. Applying `flex-wrap` and `minWidth: 0, flexGrow: 1` eliminated all horizontal overflow, fulfilling the strict zero-overflow requirement across all viewports.
 
-### 2.5 Conclusion
-The evolution of PR #69 underscores the true value of pairing AI agents with rigorous peer code review. While the agent rapidly scaffolded the workflow logic and test scaffolds, human critical analysis and peer review uncovered subtle race conditions and architectural gaps. Addressing these points transformed the ticketing workflow into an enterprise-grade, concurrency-safe, fully audited system.
-
+### 2.6 Conclusion
+The evolutionary journey across Sprint 4 demonstrates the synergy between autonomous AI pair-programming and rigorous peer code review. While AI generated initial implementations with remarkable speed, human scrutiny caught subtle concurrency races, data collisions, and test dependencies. The resulting TokTickIT codebase is resilient, fully documented, and backed by a 100% green regression test suite.
