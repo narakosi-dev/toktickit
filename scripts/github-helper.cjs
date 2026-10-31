@@ -77,7 +77,7 @@ async function main() {
       const prNumber = process.argv[3];
       const bodyOrFile = process.argv[4];
       let bodyText = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         bodyText = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const title = process.argv[5];
@@ -93,7 +93,7 @@ async function main() {
       const base = process.argv[5] || 'lab4-staging';
       const bodyOrFile = process.argv[6] || '';
       let body = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         body = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const res = await githubRequest('POST', '/pulls', { title, head, base, body });
@@ -128,7 +128,7 @@ async function main() {
       const title = process.argv[3];
       const bodyOrFile = process.argv[4] || '';
       let body = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         body = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const labels = process.argv[5] ? process.argv[5].split(',') : [];
@@ -147,7 +147,7 @@ async function main() {
       const payload = {};
       if (state && state !== '-') payload.state = state;
       if (bodyOrFile) {
-        if (fs.existsSync(bodyOrFile)) {
+        if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
           payload.body = fs.readFileSync(bodyOrFile, 'utf8');
         } else {
           payload.body = bodyOrFile;
@@ -220,7 +220,7 @@ async function main() {
       const issueOrPrNumber = process.argv[3];
       const bodyOrFile = process.argv[4];
       let body = bodyOrFile;
-      if (fs.existsSync(bodyOrFile)) {
+      if (bodyOrFile && fs.existsSync(bodyOrFile) && fs.statSync(bodyOrFile).isFile()) {
         body = fs.readFileSync(bodyOrFile, 'utf8');
       }
       const res = await githubRequest('POST', `/issues/${issueOrPrNumber}/comments`, { body });
