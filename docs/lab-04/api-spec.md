@@ -176,7 +176,7 @@ Update an existing Action Taken record.
 ## 3. Ticket Status & Workflow Transition Endpoints
 
 ### 3.1. Update Ticket Status (with Concurrency Protection)
-Perform an authorized status transition according to the Status Transition Matrix with optimistic locking.
+Perform an authorized status transition according to the Status Transition Matrix with optimistic concurrency control.
 
 - **Method / Path:** `PATCH /api/tickets/:id/status`
 - **Access Control:** `IT_Staff`, `Administrator` only.
@@ -191,8 +191,8 @@ Perform an authorized status transition according to the Status Transition Matri
 }
 ```
 - **Field Constraints:**
-  - `status` (string, required): One of `New`, `Open`, `In_Progress`, `Waiting_for_Requester`, `Resolved`, `Closed`, `Reopened`, `Cancelled`. Must be a valid next status from the current status.
-  - `version` (integer, required): Expected current version of the ticket (for optimistic locking).
+  - `status` (string, required): One of `New`, `Open`, `In_Progress`, `Waiting_for_Requester`, `Resolved`, `Closed`, `Reopened`, `Cancelled`. Must be a valid next status from the current status per the Status Transition Matrix.
+  - `version` (integer, required): Expected current version of the ticket (for atomic optimistic concurrency control).
   - `comment` (string, optional): Optional comment to be logged into activity log.
 - **Success Response (200 OK):**
 ```json
@@ -202,26 +202,74 @@ Perform an authorized status transition according to the Status Transition Matri
   "status": "In_Progress",
   "previousStatus": "Open",
   "version": 2,
+  "resolvedIndicated": false,
   "updatedAt": "2026-10-29T10:30:00.000Z"
 }
 ```
-- **Error Responses:**
-  - `400 Bad Request`: Illegal status transition (e.g. jumping from `New` to `Resolved` directly), or invalid status name:
+- **Error Responses & Machine-Readable Codes:**
+  - `400 Bad Request` (Missing version):
     ```json
     {
-      "error": "Illegal status transition",
-      "details": ["Transition from New to Resolved is not permitted. Permitted: Open, Cancelled"]
+      "error": "version is required for optimistic concurrency control",
+      "code": "VERSION_REQUIRED",
+      "details": ["A valid integer 'version' must be supplied in the request body."]
     }
     ```
-  - `409 Conflict`: Stale update detected (the ticket was modified by another user concurrently):
+  - `400 Bad Request` (Invalid version):
+    ```json
+    {
+      "error": "version must be a valid integer",
+      "code": "INVALID_VERSION"
+    }
+    ```
+  - `400 Bad Request` (Missing status):
+    ```json
+    {
+      "error": "status is required",
+      "code": "STATUS_REQUIRED"
+    }
+    ```
+  - `400 Bad Request` (Illegal status transition):
+    ```json
+    {
+      "error": "Invalid status transition from 'New' to 'Resolved'",
+      "code": "INVALID_STATUS_TRANSITION",
+      "details": ["Permitted transitions from New: Open, In_Progress, Cancelled"]
+    }
+    ```
+  - `400 Bad Request` (Resolution prerequisite violation):
+    ```json
+    {
+      "error": "Cannot resolve ticket without at least one recorded Action Taken",
+      "code": "ACTION_TAKEN_REQUIRED",
+      "details": ["At least one technical action must be documented before resolving the ticket."]
+    }
+    ```
+  - `404 Not Found` (Non-existent ticket):
+    ```json
+    {
+      "error": "Ticket not found",
+      "code": "TICKET_NOT_FOUND"
+    }
+    ```
+  - `409 Conflict` (Optimistic Concurrency Control collision):
     ```json
     {
       "error": "Conflict: Ticket has been modified concurrently",
+      "code": "CONCURRENCY_CONFLICT",
       "currentVersion": 3,
       "currentStatus": "In_Progress",
-      "message": "The ticket was updated by another technician while you were viewing it. Please refresh and review the latest changes."
+      "message": "The ticket was updated by another technician while you were viewing it. Please refresh and review the latest changes.",
+      "updatedAt": "2026-10-31T10:00:00.000Z"
     }
     ```
+
+### 3.2. Scope of Ticket Versioning (Optimistic Concurrency Control)
+The `Ticket.version` integer field is an atomic monotonic revision counter. To guarantee comprehensive race condition prevention across technicians, `version` is incremented (`version: { increment: 1 }`) on every state-mutating operation:
+1. **Status Transitions:** `PATCH /api/tickets/:id/status` and legacy `PATCH /api/staff/tickets/:id/status`.
+2. **Technician Assignment:** `PATCH /api/staff/tickets/:id/assign` (assigning or unassigning an IT staff member).
+3. **IT Priority Override:** `PATCH /api/staff/tickets/:id/priority` (setting Low, Medium, High, or Critical priority).
+4. **Requester Resolution Indication:** `POST /api/tickets/:id/resolve-indication` (requester indicating problem is resolved).
 
 ---
 

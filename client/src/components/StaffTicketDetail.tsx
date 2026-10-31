@@ -238,11 +238,25 @@ export default function StaffTicketDetail({ ticketId, onBack }: Props) {
     setOpSuccessMessage("");
     setOpErrorMessage("");
     try {
-      await updateTicketStatus(token, ticket.id, selectedStatus);
+      if (ticket.version !== undefined) {
+        await updateTicketStatus(token, ticket.id, selectedStatus, ticket.version);
+      } else {
+        await updateTicketStatus(token, ticket.id, selectedStatus);
+      }
       setOpSuccessMessage(`Status transitioned to ${formatStatusDisplay(selectedStatus)}.`);
       loadData();
     } catch (err: any) {
-      setOpErrorMessage(err.message || "Failed to update status");
+      if (err.code === "CONCURRENCY_CONFLICT") {
+        setOpErrorMessage(
+          "Conflict: The ticket was modified by another technician while you were viewing it. Please refresh the page to view the latest status and try again."
+        );
+      } else if (err.code === "ACTION_TAKEN_REQUIRED") {
+        setOpErrorMessage(
+          "Resolution Invariant Blocked: You cannot resolve a ticket without at least one recorded Action Taken."
+        );
+      } else {
+        setOpErrorMessage(err.message || "Failed to update status");
+      }
     } finally {
       setUpdatingStatus(false);
     }

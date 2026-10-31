@@ -328,6 +328,7 @@ export interface StaffTicketItem {
   priority: string;
   itPriority?: string | null;
   status: string;
+  version?: number;
   resolvedIndicated?: boolean;
   resolvedByRequester?: boolean;
   requesterId?: number;
@@ -515,19 +516,25 @@ export async function updateTicketPriority(
 export async function updateTicketStatus(
   token: string,
   ticketId: number,
-  status: string
+  status: string,
+  version?: number,
+  comment?: string
 ): Promise<any> {
-  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/status`, {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/status`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, version: version ?? 1, comment }),
   });
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.error || "Failed to update ticket status");
+    const err: any = new Error(errorBody.error || "Failed to update ticket status");
+    err.code = errorBody.code;
+    err.currentVersion = errorBody.currentVersion;
+    err.currentStatus = errorBody.currentStatus;
+    throw err;
   }
   return res.json();
 }

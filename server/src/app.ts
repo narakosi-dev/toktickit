@@ -506,7 +506,7 @@ const handleResolveIndication = async (req: Request, res: Response) => {
 
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
-      data: { resolvedIndicated: true },
+      data: { resolvedIndicated: true, version: { increment: 1 } },
     });
 
     try {

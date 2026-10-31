@@ -72,6 +72,8 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         ticketNumber: "TCK-20260901-0001",
         status: "In_Progress",
         version: 2,
+        priority: "Medium",
+        itPriority: "High",
         resolvedIndicated: false,
         requesterId: 1,
         assignedToId: 8,
@@ -84,6 +86,8 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         ticketNumber: "TCK-20260902-0002",
         status: "In_Progress",
         version: 1,
+        priority: "Low",
+        itPriority: "Medium",
         resolvedIndicated: true, // Requester indicated resolution
         requesterId: 1,
         assignedToId: 8,
@@ -96,6 +100,8 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         ticketNumber: "TCK-20260903-0003",
         status: "New",
         version: 1,
+        priority: "Medium",
+        itPriority: null,
         resolvedIndicated: false,
         requesterId: 1,
         assignedToId: null,
@@ -108,6 +114,8 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         ticketNumber: "TCK-20260904-0004",
         status: "Closed",
         version: 3,
+        priority: "High",
+        itPriority: "Critical",
         resolvedIndicated: true,
         requesterId: 1,
         assignedToId: 8,
@@ -120,6 +128,8 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         ticketNumber: "TCK-20260905-0005",
         status: "Resolved",
         version: 2,
+        priority: "Medium",
+        itPriority: "Medium",
         resolvedIndicated: true,
         requesterId: 1,
         assignedToId: 8,
@@ -130,7 +140,7 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
 
     mockLogs = [];
 
-    setPrisma({
+    const mockPrisma: any = {
       user: {
         findUnique: async ({ where }: any) => {
           if (where.id) return mockUsersMap[where.id] || null;
@@ -140,14 +150,51 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
       ticket: {
         findUnique: async ({ where }: any) => {
           const t = mockTickets.find((x) => x.id === where.id);
-          return t ? { ...t } : null;
+          if (!t) return null;
+          const actions = mockActions.filter((a) => a.ticketId === t.id);
+          return {
+            ...t,
+            actionsTaken: actions,
+            _count: { actionsTaken: actions.length },
+          };
+        },
+        updateMany: async ({ where, data }: any) => {
+          const t = mockTickets.find((x) => x.id === where.id);
+          if (!t) return { count: 0 };
+          if (where.version !== undefined && t.version !== where.version) {
+            return { count: 0 };
+          }
+          if (data.version && data.version.increment !== undefined) {
+            t.version += data.version.increment;
+          } else if (typeof data.version === "number") {
+            t.version = data.version;
+          }
+          if (data.status) t.status = data.status;
+          if (data.assignedToId !== undefined) t.assignedToId = data.assignedToId;
+          if (data.itPriority !== undefined) t.itPriority = data.itPriority;
+          if (data.resolvedIndicated !== undefined) t.resolvedIndicated = data.resolvedIndicated;
+          t.updatedAt = new Date();
+          return { count: 1 };
         },
         update: async ({ where, data }: any) => {
           const t = mockTickets.find((x) => x.id === where.id);
           if (!t) throw new Error("Ticket not found");
-          Object.assign(t, data);
+          if (data.version && data.version.increment !== undefined) {
+            t.version += data.version.increment;
+          } else if (typeof data.version === "number") {
+            t.version = data.version;
+          }
+          if (data.status) t.status = data.status;
+          if (data.assignedToId !== undefined) t.assignedToId = data.assignedToId;
+          if (data.itPriority !== undefined) t.itPriority = data.itPriority;
+          if (data.resolvedIndicated !== undefined) t.resolvedIndicated = data.resolvedIndicated;
           t.updatedAt = new Date();
-          return { ...t };
+          const actions = mockActions.filter((a) => a.ticketId === t.id);
+          return {
+            ...t,
+            actionsTaken: actions,
+            _count: { actionsTaken: actions.length },
+          };
         },
       },
       actionTaken: {
@@ -162,7 +209,15 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
           return log;
         },
       },
-    });
+      $transaction: async (fnOrArray: any) => {
+        if (typeof fnOrArray === "function") {
+          return await fnOrArray(mockPrisma);
+        }
+        return Promise.all(fnOrArray);
+      },
+    };
+
+    setPrisma(mockPrisma);
   });
 
   // ==========================================================================
@@ -189,7 +244,18 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         .set("Authorization", `Bearer ${staffToken}`)
         .send({ version: 2 });
       expect(res.status).toBe(400);
+      expect(res.body.code).toBe("STATUS_REQUIRED");
       expect(res.body.error).toContain("status is required");
+    });
+
+    it("returns 400 Bad Request when version parameter is missing (AC-06 mandatory OCC)", async () => {
+      const res = await request(app)
+        .patch("/api/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Waiting_for_Requester" });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("VERSION_REQUIRED");
+      expect(res.body.error).toContain("version is required");
     });
 
     it("returns 404 Not Found for non-existent ticket", async () => {
@@ -198,6 +264,7 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         .set("Authorization", `Bearer ${staffToken}`)
         .send({ status: "In_Progress", version: 1 });
       expect(res.status).toBe(404);
+      expect(res.body.code).toBe("TICKET_NOT_FOUND");
       expect(res.body.error).toContain("Ticket not found");
     });
   });
@@ -217,6 +284,7 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
         });
 
       expect(res.status).toBe(409);
+      expect(res.body.code).toBe("CONCURRENCY_CONFLICT");
       expect(res.body.error).toContain("Conflict: Ticket has been modified concurrently");
       expect(res.body.currentVersion).toBe(2);
       expect(res.body.currentStatus).toBe("In_Progress");
@@ -232,6 +300,7 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
           version: "not-a-number",
         });
       expect(res.status).toBe(400);
+      expect(res.body.code).toBe("INVALID_VERSION");
       expect(res.body.error).toContain("version must be a valid integer");
     });
 
@@ -249,6 +318,31 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
       expect(res.body.version).toBe(3);
       expect(res.body.previousStatus).toBe("In_Progress");
     });
+
+    it("concurrent requests race condition: exactly one succeeds (200) and one receives 409 (CONCURRENCY_CONFLICT)", async () => {
+      // Ticket 101 starts at version: 2
+      // Two technicians attempt to transition simultaneously with version: 2
+      const req1 = request(app)
+        .patch("/api/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Waiting_for_Requester", version: 2 });
+
+      const req2 = request(app)
+        .patch("/api/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ status: "Resolved", version: 2 });
+
+      const [res1, res2] = await Promise.all([req1, req2]);
+      const statuses = [res1.status, res2.status].sort();
+      expect(statuses).toEqual([200, 409]);
+
+      const conflictRes = res1.status === 409 ? res1 : res2;
+      expect(conflictRes.body.code).toBe("CONCURRENCY_CONFLICT");
+      expect(conflictRes.body.currentVersion).toBe(3);
+
+      const successRes = res1.status === 200 ? res1 : res2;
+      expect(successRes.body.version).toBe(3);
+    });
   });
 
   // ==========================================================================
@@ -264,6 +358,7 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
           version: 1,
         });
       expect(res.status).toBe(400);
+      expect(res.body.code).toBe("INVALID_STATUS_TRANSITION");
       expect(res.body.error).toContain("Invalid status transition from 'New' to 'Resolved'");
       expect(res.body.details[0]).toContain("Permitted transitions from New");
     });
@@ -277,6 +372,7 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
           version: 3,
         });
       expect(res.status).toBe(400);
+      expect(res.body.code).toBe("INVALID_STATUS_TRANSITION");
       expect(res.body.error).toContain("Invalid status transition from 'Closed' to 'Reopened'");
     });
 
@@ -343,6 +439,35 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
       expect(res.body.status).toBe("Resolved");
       expect(res.body.version).toBe(3);
     });
+
+    it("legacy endpoint PATCH /api/staff/tickets/:id/status directly enforces resolution gate (ACTION_TAKEN_REQUIRED) if zero actions exist", async () => {
+      // Ticket 102 has 0 actions taken
+      const res = await request(app)
+        .patch("/api/staff/tickets/102/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({
+          status: "Resolved",
+          version: 1,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("ACTION_TAKEN_REQUIRED");
+      expect(res.body.error).toContain("Cannot resolve ticket without at least one recorded Action Taken");
+    });
+
+    it("legacy endpoint PATCH /api/staff/tickets/:id/status allows resolution when actions taken exist", async () => {
+      // Ticket 101 has 1 action taken
+      const res = await request(app)
+        .patch("/api/staff/tickets/101/status")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({
+          status: "Resolved",
+          version: 2,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe("Resolved");
+    });
   });
 
   // ==========================================================================
@@ -361,6 +486,46 @@ describe("Lab 4: Ticket Workflow, Status Transition Matrix & Concurrency Gate (t
 
       expect(res.status).toBe(200);
       expect(res.body.resolvedIndicated).toBe(true);
+    });
+  });
+
+  // ==========================================================================
+  // Section 6: Version Incrementation Scope Across Mutating Endpoints
+  // ==========================================================================
+  describe("Version Incrementation Scope Across Mutating Endpoints", () => {
+    it("PATCH /api/staff/tickets/:id/assign increments ticket version", async () => {
+      const initialVersion = mockTickets.find((t) => t.id === 101).version;
+      const res = await request(app)
+        .patch("/api/staff/tickets/101/assign")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ staffId: 8 });
+
+      expect(res.status).toBe(200);
+      const updated = mockTickets.find((t) => t.id === 101);
+      expect(updated.version).toBe(initialVersion + 1);
+    });
+
+    it("PATCH /api/staff/tickets/:id/priority increments ticket version", async () => {
+      const initialVersion = mockTickets.find((t) => t.id === 101).version;
+      const res = await request(app)
+        .patch("/api/staff/tickets/101/priority")
+        .set("Authorization", `Bearer ${staffToken}`)
+        .send({ itPriority: "Critical" });
+
+      expect(res.status).toBe(200);
+      const updated = mockTickets.find((t) => t.id === 101);
+      expect(updated.version).toBe(initialVersion + 1);
+    });
+
+    it("POST /api/tickets/:id/resolve-indication increments ticket version", async () => {
+      const initialVersion = mockTickets.find((t) => t.id === 101).version;
+      const res = await request(app)
+        .post("/api/tickets/101/resolve-indication")
+        .set("Authorization", `Bearer ${requesterToken}`);
+
+      expect(res.status).toBe(200);
+      const updated = mockTickets.find((t) => t.id === 101);
+      expect(updated.version).toBe(initialVersion + 1);
     });
   });
 });
