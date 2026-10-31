@@ -50,11 +50,12 @@ export const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
  *
  * Implements atomic transactional execution:
  * 1. Requires explicit version parameter (HTTP 400 if missing or invalid).
- * 2. Validates Status Transition Matrix (HTTP 400 on illegal jumps or terminal state exits).
- * 3. Enforces Resolution Gate: requires at least 1 ActionTaken record (HTTP 400 ACTION_TAKEN_REQUIRED).
- * 4. Executes atomic update via updateMany({ where: { id, version } }) inside prisma.$transaction.
+ * 2. Enforces OCC check: if version !== expectedVersion, returns HTTP 409 Conflict immediately.
+ * 3. Validates Status Transition Matrix (HTTP 400 on illegal jumps or terminal state exits).
+ * 4. Enforces Resolution Gate: requires at least 1 ActionTaken record (HTTP 400 ACTION_TAKEN_REQUIRED).
+ * 5. Executes atomic update via updateMany({ where: { id, version } }) inside prisma.$transaction.
  *    If count === 0, returns HTTP 409 Conflict with current state.
- * 5. Writes ActivityLog within the exact same atomic transaction to guarantee auditability.
+ * 6. Writes ActivityLog within the exact same atomic transaction to guarantee auditability.
  */
 export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
   try {
@@ -122,10 +123,25 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
         };
       }
 
+      // 2. Pre-CAS Concurrency Check: Stale version detected before state evaluation
+      if (ticket.version !== expectedVersion) {
+        return {
+          status: 409,
+          body: {
+            error: "Conflict: Ticket has been modified concurrently",
+            code: "CONCURRENCY_CONFLICT",
+            currentVersion: ticket.version,
+            currentStatus: ticket.status,
+            message: "The ticket was updated by another technician while you were viewing it. Please refresh and review the latest changes.",
+            updatedAt: ticket.updatedAt,
+          },
+        };
+      }
+
       const currentNormalized = normalizeStatus(ticket.status);
       const targetNormalized = currentNormalizedTarget;
 
-      // 2. Validate Status Transition Matrix against BR-06
+      // 3. Validate Status Transition Matrix against BR-06
       const allowedNext = VALID_STATUS_TRANSITIONS[currentNormalized] || [];
       if (currentNormalized === targetNormalized || !allowedNext.includes(targetNormalized)) {
         return {
@@ -138,7 +154,7 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
         };
       }
 
-      // 3. Resolution Invariant Gate (AC-07): Must have at least 1 Action Taken to Resolve
+      // 4. Resolution Invariant Gate (AC-07): Must have at least 1 Action Taken to Resolve
       if (targetNormalized === "Resolved") {
         const actionsCount = ticket._count?.actionsTaken ?? 0;
         if (actionsCount === 0) {
@@ -153,7 +169,7 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
         }
       }
 
-      // 4. Atomic OCC Update using updateMany with version match in WHERE clause
+      // 5. Atomic OCC Update using updateMany with version match in WHERE clause
       const updateResult = await tx.ticket.updateMany({
         where: {
           id: ticketId,
@@ -181,7 +197,7 @@ export const handleUpdateTicketStatus = async (req: Request, res: Response) => {
         };
       }
 
-      // 5. Activity Log (in the same atomic transaction)
+      // 6. Activity Log (in the same atomic transaction)
       const commentDetails = req.body.comment && typeof req.body.comment === "string" && req.body.comment.trim()
         ? ` (${req.body.comment.trim()})`
         : "";

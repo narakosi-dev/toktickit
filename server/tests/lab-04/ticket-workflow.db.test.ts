@@ -96,7 +96,7 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
       return;
     }
 
-    // Both requests attempt New -> Open from version: 1 simultaneously
+    // Both requests attempt valid transitions from New (version 1) simultaneously
     const [res1, res2] = await Promise.all([
       request(app)
         .patch(`/api/tickets/${testTicketId}/status`)
@@ -105,7 +105,7 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
       request(app)
         .patch(`/api/tickets/${testTicketId}/status`)
         .set("Authorization", `Bearer ${staffToken}`)
-        .send({ status: "Open", version: 1 }),
+        .send({ status: "Cancelled", version: 1 }),
     ]);
 
     const statuses = [res1.status, res2.status].sort();
@@ -117,12 +117,12 @@ describe("PostgreSQL Real Atomic Concurrency Control (OCC) Integration Test", ()
     expect(conflictRes.body.currentVersion).toBe(2);
 
     const winningRes = res1.status === 200 ? res1 : res2;
-    expect(winningRes.body.status).toBe("Open");
+    expect(["Open", "Cancelled"]).toContain(winningRes.body.status);
     expect(winningRes.body.version).toBe(2);
 
     // Verify true database state in PostgreSQL
     const liveTicket = await prisma.ticket.findUnique({ where: { id: testTicketId } });
     expect(liveTicket?.version).toBe(2);
-    expect(liveTicket?.status).toBe("Open");
+    expect(["Open", "Cancelled"]).toContain(liveTicket?.status);
   });
 });
