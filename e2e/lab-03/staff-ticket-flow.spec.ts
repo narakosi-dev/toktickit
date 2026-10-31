@@ -102,7 +102,11 @@ test.describe("Sprint 3 (Lab 3) E2E: Staff Ticket Lifecycle Flow (Issue #35)", (
     await expect(page.getByText("IT priority updated")).toBeVisible();
     await expect(page.getByText("IT: Critical")).toBeVisible();
 
-    // Transition Status to In Progress
+    // Transition Status: New -> Open -> In_Progress per BR-06
+    await page.selectOption("#staff-status-select", "Open");
+    await page.getByRole("button", { name: /Update Status/i }).click();
+    await expect(page.getByText(/Status transitioned to Open/i)).toBeVisible();
+
     await page.selectOption("#staff-status-select", "In_Progress");
     await page.getByRole("button", { name: /Update Status/i }).click();
     await expect(page.getByText(/Status transitioned to In Progress/i)).toBeVisible();
