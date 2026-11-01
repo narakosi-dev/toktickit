@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useContext } from "react";
+import ActionsTakenSection from "./ActionsTakenSection.js";
 import { useRequester } from "../context/RequesterContext.js";
 import { AuthContext } from "../context/AuthContext.js";
 import {
@@ -596,6 +597,13 @@ export default function TicketDetail({ ticketId, onBack }: Props) {
           </div>
         )}
       </div>
+
+      {/* Actions Taken Section (Lab 4 — Issue 6 / UI-ACT-03) */}
+      <ActionsTakenSection
+        ticketId={ticket.id}
+        token={token}
+        readOnly={true}
+      />
 
       {/* Public Comments / Conversation Section (Issue 9 / FR-19 / BR-10) */}
       <div className="zen-card p-4" data-testid="public-comments-section">

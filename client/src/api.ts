@@ -1,5 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
+export const OPEN_GROUP_STATUS = "OPEN_GROUP";
+
 export interface Category {
   id: number;
   name: string;
@@ -328,6 +330,7 @@ export interface StaffTicketItem {
   priority: string;
   itPriority?: string | null;
   status: string;
+  version: number;
   resolvedIndicated?: boolean;
   resolvedByRequester?: boolean;
   requesterId?: number;
@@ -515,19 +518,26 @@ export async function updateTicketPriority(
 export async function updateTicketStatus(
   token: string,
   ticketId: number,
-  status: string
+  status: string,
+  version: number,
+  comment?: string
 ): Promise<any> {
-  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}/status`, {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/status`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, version, comment }),
   });
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({}));
-    throw new Error(errorBody.error || "Failed to update ticket status");
+    const err: any = new Error(errorBody.error || "Failed to update ticket status");
+    err.code = errorBody.code;
+    err.status = res.status;
+    err.currentVersion = errorBody.currentVersion;
+    err.currentStatus = errorBody.currentStatus;
+    throw err;
   }
   return res.json();
 }
@@ -789,3 +799,203 @@ export function validatePasswordStrength(password: string): { valid: boolean; re
 
 
 
+
+// Lab 4 — Issue 4 & 6: Actions Taken Types & API
+// ---------------------------------------------------------------------------
+export interface ActionTakenItem {
+  id: number;
+  ticketId: number;
+  performedById: number;
+  actionDateTime: string;
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  performedBy?: {
+    id: number;
+    name: string;
+    email?: string;
+    role?: string;
+  };
+}
+
+export interface ActionsTakenListResponse {
+  ticketId: number;
+  ticketNumber: string;
+  totalActions: number;
+  actionsTaken: ActionTakenItem[];
+}
+
+export interface CreateActionTakenPayload {
+  description: string;
+  result: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  actionDateTime?: string;
+  performedById?: number;
+}
+
+export interface UpdateActionTakenPayload {
+  description?: string;
+  result?: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  actionDateTime?: string;
+  performedById?: number;
+}
+
+export async function fetchActionsTaken(
+  token: string,
+  ticketId: number
+): Promise<ActionsTakenListResponse> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch actions taken");
+  }
+  return res.json();
+}
+
+export async function createActionTaken(
+  token: string,
+  ticketId: number,
+  payload: CreateActionTakenPayload
+): Promise<ActionTakenItem> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to record action taken");
+  }
+  return res.json();
+}
+
+export async function updateActionTaken(
+  token: string,
+  ticketId: number,
+  actionId: number,
+  payload: UpdateActionTakenPayload
+): Promise<ActionTakenItem> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken/${actionId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to update action taken");
+  }
+  return res.json();
+}
+
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Issue 10: Role Dashboard API Types & Endpoints
+// ---------------------------------------------------------------------------
+
+export interface StaffDashboardMetrics {
+  unassignedCount: number;
+  myAssignedCount: number;
+  statusBreakdown?: Record<string, number>;
+  statusCounts?: Record<string, number>;
+  priorityBreakdown?: Record<string, number>;
+  priorityCounts?: Record<string, number>;
+}
+
+export interface UrgentTicketItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  priority: string;
+  itPriority: string | null;
+  status: string;
+  requester: { id: number; name: string } | null;
+  assignedTo: { id: number; name: string } | null;
+  createdAt: string;
+}
+
+export interface RecentUpdatedTicketItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  priority: string;
+  itPriority: string | null;
+  status: string;
+  requester: { id: number; name: string } | null;
+  assignedTo: { id: number; name: string } | null;
+  updatedAt: string;
+}
+
+export interface StaffDashboardResponse {
+  metrics: StaffDashboardMetrics;
+  urgentTickets: UrgentTicketItem[];
+  recentUpdatedTickets: RecentUpdatedTicketItem[];
+  generatedAt?: string;
+}
+
+export async function fetchStaffDashboard(token: string): Promise<StaffDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/staff`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch staff dashboard");
+  }
+  return res.json();
+}
+
+export interface RequesterDashboardMetrics {
+  totalOpen: number;
+  inProgress: number;
+  waitingForRequester: number;
+  recentlyResolved: number;
+  closed: number;
+  closedCount?: number;
+}
+
+export interface RequesterRecentTicketItem {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  priority: string;
+  status: string;
+  resolvedIndicated: boolean;
+  category: { id: number; name: string } | null;
+  updatedAt: string;
+}
+
+export interface RequesterDashboardResponse {
+  metrics: RequesterDashboardMetrics;
+  recentTickets: RequesterRecentTicketItem[];
+  generatedAt?: string;
+}
+
+export async function fetchRequesterDashboard(token: string): Promise<RequesterDashboardResponse> {
+  const res = await fetch(`${API_URL}/api/dashboard/requester`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error(errorBody.error || "Failed to fetch requester dashboard");
+  }
+  return res.json();
+}

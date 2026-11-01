@@ -68,6 +68,9 @@ import { authRouter } from "./routes/auth.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
 import { commentsRouter } from "./routes/comments.routes.js";
 import { adminRouter } from "./routes/admin.routes.js";
+import { actionsRouter } from "./routes/actions.routes.js";
+import { workflowRouter } from "./routes/workflow.routes.js";
+import { dashboardRouter } from "./routes/dashboard.routes.js";
 import { authenticateToken, requirePasswordChanged, verifyToken } from "./auth.js";
 
 export const app = express();
@@ -81,7 +84,10 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/tickets", commentsRouter);
+app.use("/api/tickets", actionsRouter);
+app.use("/api/tickets", workflowRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 1: Health check
@@ -309,7 +315,17 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
     }
 
     if (status && typeof status === "string" && status.trim()) {
-      where.status = status.trim();
+      const s = status.trim();
+      const norm = s.replace(/\s+/g, "_");
+      if (norm === "OPEN_GROUP") {
+        where.status = { in: ["New", "Open", "In_Progress", "Waiting_for_Requester", "Reopened"] };
+      } else if (norm.toLowerCase() === "in_progress") {
+        where.status = "In_Progress";
+      } else if (norm.toLowerCase() === "waiting_for_requester" || norm.toLowerCase() === "pending_requester") {
+        where.status = "Waiting_for_Requester";
+      } else {
+        where.status = norm;
+      }
     }
 
     let orderBy: any = { ticketDate: "desc" };
@@ -502,7 +518,7 @@ const handleResolveIndication = async (req: Request, res: Response) => {
 
     const updated = await prisma.ticket.update({
       where: { id: ticketId },
-      data: { resolvedIndicated: true },
+      data: { resolvedIndicated: true, version: { increment: 1 } },
     });
 
     try {

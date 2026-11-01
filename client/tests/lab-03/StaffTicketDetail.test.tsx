@@ -39,6 +39,7 @@ const mockBaseTicket: api.StaffTicketDetailData = {
   priority: "High",
   itPriority: "High",
   status: "New",
+  version: 1,
   requesterId: 5,
   requester: { id: 5, name: "Alice Requester", email: "alice@example.com" },
   ownerId: null,
@@ -148,7 +149,7 @@ describe("StaffTicketDetail Component (Lab 3 — Issue 9)", () => {
     expect(await screen.findByText(/Ticket claimed successfully/i)).toBeInTheDocument();
   });
 
-  it("TC-CLI-DETAIL-03: status dropdown enforces BR-13 transition matrix (New -> Assigned, Open, In_Progress, Cancelled)", async () => {
+  it("TC-CLI-DETAIL-03: status dropdown enforces transition matrix (New -> Open, Cancelled)", async () => {
     (api.fetchStaffTicketDetail as any).mockResolvedValue(mockBaseTicket);
     (api.updateTicketStatus as any).mockResolvedValue({ success: true });
 
@@ -161,24 +162,23 @@ describe("StaffTicketDetail Component (Lab 3 — Issue 9)", () => {
     const statusSelect = screen.getByLabelText(/Transition Status/i) as HTMLSelectElement;
     const options = Array.from(statusSelect.options).map((opt) => opt.value);
 
-    // Permitted next states from 'New': Assigned, Open, In_Progress, Cancelled
-    expect(options).toContain("Assigned");
+    // Permitted next states from 'New' per BR-06: Open, Cancelled
     expect(options).toContain("Open");
-    expect(options).toContain("In_Progress");
     expect(options).toContain("Cancelled");
-    // Invalid next states from 'New' per BR-13:
+    // Invalid next states from 'New':
     expect(options).not.toContain("Closed");
     expect(options).not.toContain("Pending_Requester");
+    expect(options).not.toContain("Resolved");
 
-    // Select In_Progress and update
-    fireEvent.change(statusSelect, { target: { value: "In_Progress" } });
+    // Select Open and update
+    fireEvent.change(statusSelect, { target: { value: "Open" } });
     const updateButton = screen.getByRole("button", { name: "Update Status" });
     expect(updateButton).not.toBeDisabled();
 
     fireEvent.click(updateButton);
 
     await waitFor(() => {
-      expect(api.updateTicketStatus).toHaveBeenCalledWith("mock-jwt-staff-token", 101, "In_Progress");
+      expect(api.updateTicketStatus).toHaveBeenCalledWith("mock-jwt-staff-token", 101, "Open", 1);
     });
   });
 

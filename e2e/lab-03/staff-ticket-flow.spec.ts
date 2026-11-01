@@ -102,7 +102,11 @@ test.describe("Sprint 3 (Lab 3) E2E: Staff Ticket Lifecycle Flow (Issue #35)", (
     await expect(page.getByText("IT priority updated")).toBeVisible();
     await expect(page.getByText("IT: Critical")).toBeVisible();
 
-    // Transition Status to In Progress
+    // Transition Status: New -> Open -> In_Progress per BR-06
+    await page.selectOption("#staff-status-select", "Open");
+    await page.getByRole("button", { name: /Update Status/i }).click();
+    await expect(page.getByText(/Status transitioned to Open/i)).toBeVisible();
+
     await page.selectOption("#staff-status-select", "In_Progress");
     await page.getByRole("button", { name: /Update Status/i }).click();
     await expect(page.getByText(/Status transitioned to In Progress/i)).toBeVisible();
@@ -202,6 +206,31 @@ test.describe("Sprint 3 (Lab 3) E2E: Staff Ticket Lifecycle Flow (Issue #35)", (
 
     // Verify prominent requester indication banner
     await expect(page.getByText(/Requester Indication: The requester indicated this issue appears resolved/i)).toBeVisible();
+
+    // Sprint 4 Resolution Invariant (AC-07): A ticket requires at least one Action Taken to resolve.
+    // Record action taken via API using the authenticated IT Staff session:
+    const apiBase = process.env.API_URL || "http://localhost:3000";
+    const token = await page.evaluate(() => localStorage.getItem("toktickit_auth_token") || "");
+    const listRes = await page.request.get(`${apiBase}/api/staff/tickets?q=${encodeURIComponent(ticketNumber)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(listRes.ok()).toBe(true);
+    const listData = await listRes.json();
+    const currentTicket = (listData.tickets || listData.items || []).find((t: any) => t.ticketNumber === ticketNumber);
+    expect(currentTicket).toBeDefined();
+
+    const actionRes = await page.request.post(`${apiBase}/api/tickets/${currentTicket.id}/actions-taken`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      data: {
+        description: "Inspected core gateway switch SW-02 and cleared flapping routing cache.",
+        result: "Packet drop rate returned to zero, VPN connection stabilized.",
+        followUpRequired: false,
+      },
+    });
+    expect(actionRes.ok()).toBe(true);
 
     // Transition to Resolved
     await page.selectOption("#staff-status-select", "Resolved");
